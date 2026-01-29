@@ -1,33 +1,22 @@
-# Home Assistant secrets & local data
-ha_config/secrets.yaml
-ha_config/*.db
-ha_config/*.db-shm
-ha_config/*.db-wal
-ha_config/home-assistant.log*
-ha_config/home-assistant_v2.db*
+# --- Home Assistant: secrets & runtime noise ---
+ha_config/**/secrets.yaml
 
-# (optional) other sensitive folders
+ha_config/**/*.db*
+ha_config/**/*.log*
+ha_config/**/home-assistant_v2.db*
+ha_config/**/home-assistant.log*
+
+# Optional: generated media/cache folders (keep if you need them)
 ha_config/tts/
 ha_config/www/community/
 
+# Default: ignore HA UI storage (we'll migrate helpers/dashboards to YAML)
+ha_config/.storage/**
 
-# environment files
-.envrc
-.gcp-credentials.json
-
-# Full HA config snapshots (raw mirrors) - keep out of main repo
+# --- Full HA config snapshots (raw mirrors) ---
 ha_config_full_*/
 ha_config_full/**
 
-# Secrets (never commit)
-ha_config/**/secrets.yaml
-ha_config/secrets.yaml
-
-# Databases / logs / runtime noise
-ha_config/**/*.db*
-ha_config/home-assistant_v2.db*
-ha_config/**/*.log*
-ha_config/home-assistant.log*
-
-# UI storage (default: ignore; we’ll migrate helpers to YAML)
-ha_config/.storage/**
+# --- Environment / credentials ---
+.envrc
+.gcp-credentials.json
