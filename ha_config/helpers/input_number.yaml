@@ -1,0 +1,32 @@
+hemma_borvarde_dag:
+  min: 16.0
+  max: 28.0
+  name: "Hemma börvärde dag"
+  unit_of_measurement: "°C"
+  icon: "mdi:temperature-celsius"
+  mode: "slider"
+  step: 1.0
+hemma_borvarde_natt:
+  min: 16.0
+  max: 28.0
+  name: "Hemma börvärde natt"
+  icon: "mdi:temperature-celsius"
+  unit_of_measurement: "°C"
+  mode: "slider"
+  step: 1.0
+pa_vag_target:
+  min: 16.0
+  max: 25.0
+  name: "På väg target"
+  icon: "mdi:temperature-celsius"
+  unit_of_measurement: "°C"
+  mode: "slider"
+  step: 1.0
+borta_sovrum_target:
+  min: 6.0
+  max: 16.0
+  name: "Borta sovrum target"
+  icon: "mdi:temperature-celsius"
+  unit_of_measurement: "°C"
+  mode: "slider"
+  step: 1.0

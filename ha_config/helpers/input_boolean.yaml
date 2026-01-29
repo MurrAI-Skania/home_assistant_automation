@@ -1,0 +1,12 @@
+camera_privacy:
+  name: "Camera privacy"
+  icon: "mdi:camera"
+vardagsrum_in_the_mood:
+  name: "vardagsrum in the mood"
+  icon: "mdi:cards-heart"
+vardagsrum_warning_emotionally_instable:
+  name: "vardagsrum warning emotionally instable"
+  icon: "mdi:sword-cross"
+vardagsrum_ledstrip_prev_saved:
+  name: "vardagsrum ledstrip prev saved"
+  icon: "mdi:content-save"

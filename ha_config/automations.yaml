@@ -1,0 +1,1189 @@
+- id: '1768653089192'
+  alias: Vardagsrum - Knapp 1 Kort (UPP)
+  triggers:
+  - event_type: state_changed
+    event_data:
+      entity_id: event.vardagsrum_knapp_entre_button_1
+    trigger: event
+  conditions:
+  - condition: template
+    value_template: '{{ trigger.event.data.new_state.attributes.event_type == ''multi_press_1''
+      }}'
+  actions:
+  - choose:
+    - conditions:
+      - condition: state
+        entity_id: light.vardagsrum_lampor
+        state: 'off'
+      sequence:
+      - target:
+          entity_id: light.vardagsrum_lampor
+        data:
+          brightness_pct: 20
+          color_temp: 454
+        action: light.turn_on
+    - conditions:
+      - condition: state
+        entity_id: light.vardagsrum_taklampa
+        state: 'off'
+      - condition: state
+        entity_id: light.vardagsrum_ledstrip_baksida
+        state: 'on'
+      sequence:
+      - target:
+          entity_id: light.vardagsrum_ledstrip_baksida
+        data:
+          brightness_step_pct: 20
+        action: light.turn_on
+    default:
+    - target:
+        entity_id: light.vardagsrum_lampor
+      data:
+        brightness_step_pct: 20
+      action: light.turn_on
+  mode: restart
+- id: '1768653305796'
+  alias: Vardagsrum - Knapp 2 Kort (NER)
+  triggers:
+  - event_type: state_changed
+    event_data:
+      entity_id: event.vardagsrum_knapp_entre_button_2
+    trigger: event
+  conditions:
+  - condition: template
+    value_template: '{{ trigger.event.data.new_state.attributes.event_type == ''multi_press_1''
+      }}'
+  actions:
+  - choose:
+    - conditions:
+      - condition: state
+        entity_id: light.vardagsrum_lampor
+        state: 'off'
+      sequence: []
+    - conditions:
+      - condition: state
+        entity_id: light.vardagsrum_taklampa
+        state: 'off'
+      - condition: state
+        entity_id: light.vardagsrum_ledstrip_baksida
+        state: 'on'
+      sequence:
+      - target:
+          entity_id: light.vardagsrum_ledstrip_baksida
+        data:
+          brightness_step_pct: -20
+        action: light.turn_on
+    default:
+    - target:
+        entity_id: light.vardagsrum_lampor
+      data:
+        brightness_step_pct: -20
+      action: light.turn_on
+  mode: restart
+- id: '1768654709358'
+  alias: Vardagsrum - Knapp 2 Lång (MYS/CYKEL)
+  description: 'Uppdaterad: Reset går nu till ''Gold''.'
+  triggers:
+  - event_type: state_changed
+    event_data:
+      entity_id: event.vardagsrum_knapp_entre_button_2
+    trigger: event
+  conditions:
+  - condition: template
+    value_template: '{{ trigger.event.data.new_state.attributes.event_type == ''long_press''
+      }}'
+  actions:
+  - choose:
+    - conditions:
+      - condition: state
+        entity_id: light.vardagsrum_taklampa
+        state: 'on'
+      sequence:
+      - target:
+          entity_id: light.vardagsrum_taklampa
+        action: light.turn_off
+      - target:
+          entity_id: input_select.vardagsrum_led_mysbelysning_cykel
+        data:
+          option: Gold
+        action: input_select.select_option
+      - target:
+          entity_id: light.vardagsrum_ledstrip_baksida
+        action: light.turn_on
+    default:
+    - target:
+        entity_id: input_select.vardagsrum_led_mysbelysning_cykel
+      action: input_select.select_next
+  mode: restart
+- id: '1768655447976'
+  alias: Vardagsrum - Knapp 1 Lång (MAX/AV)
+  triggers:
+  - event_type: state_changed
+    event_data:
+      entity_id: event.vardagsrum_knapp_entre_button_1
+    trigger: event
+  conditions:
+  - condition: template
+    value_template: '{{ trigger.event.data.new_state.attributes.event_type == ''long_press''
+      }}'
+  actions:
+  - choose:
+    - conditions:
+      - condition: state
+        entity_id: light.vardagsrum_lampor
+        state: 'off'
+      sequence:
+      - target:
+          entity_id: light.vardagsrum_taklampa
+        data:
+          brightness_pct: 100
+        action: light.turn_on
+      - target:
+          entity_id: light.vardagsrum_ledstrip_baksida
+        data:
+          brightness_pct: 100
+          color_temp: 454
+        action: light.turn_on
+    - conditions:
+      - condition: state
+        entity_id: light.vardagsrum_taklampa
+        state: 'off'
+      - condition: state
+        entity_id: light.vardagsrum_ledstrip_baksida
+        state: 'on'
+      sequence:
+      - target:
+          entity_id: light.vardagsrum_taklampa
+        data:
+          brightness: '{{ state_attr(''light.vardagsrum_ledstrip_baksida'', ''brightness'')
+            | int(255) }}'
+          color_temp: 454
+        action: light.turn_on
+    default:
+    - target:
+        entity_id: script.vardagsrum_mys_loop
+      action: script.turn_off
+    - target:
+        entity_id: light.vardagsrum_lampor
+      action: light.turn_off
+  mode: restart
+- id: '1768693380810'
+  alias: Sovrum - Ljus UPP (Knapp 1)
+  description: Tänder lamporna eller ökar ljusstyrkan.
+  triggers:
+  - event_type: state_changed
+    event_data:
+      entity_id: event.sovrum_knapp_dorr_button_1
+    trigger: event
+  conditions:
+  - condition: template
+    value_template: '{{ trigger.event.data.new_state.attributes.event_type == ''multi_press_1''
+      }}'
+  actions:
+  - choose:
+    - conditions:
+      - condition: state
+        entity_id: light.sovrum_taklampa
+        state: 'off'
+      sequence:
+      - action: light.turn_on
+        target:
+          entity_id:
+          - light.sovrum_taklampa
+          - light.murres_golvlampa_horn
+        data:
+          brightness_pct: 20
+          transition: 1
+    default:
+    - action: light.turn_on
+      target:
+        entity_id:
+        - light.sovrum_taklampa
+        - light.murres_golvlampa_horn
+      data:
+        brightness_step_pct: 20
+        transition: 0.5
+  mode: restart
+- id: '1768693402300'
+  alias: Sovrum - Ljus NER (Knapp 2)
+  description: Sänker ljuset. Om det redan är svagt (<40) så släcks det.
+  triggers:
+  - event_type: state_changed
+    event_data:
+      entity_id: event.sovrum_knapp_dorr_button_2
+    trigger: event
+  conditions:
+  - condition: template
+    value_template: '{{ trigger.event.data.new_state.attributes.event_type == ''multi_press_1''
+      }}'
+  actions:
+  - choose:
+    - conditions:
+      - condition: state
+        entity_id: light.sovrum_taklampa
+        state: 'on'
+      - condition: numeric_state
+        entity_id: light.sovrum_taklampa
+        attribute: brightness
+        below: 40
+      sequence:
+      - action: light.turn_off
+        target:
+          entity_id:
+          - light.sovrum_taklampa
+          - light.murres_golvlampa_horn
+        data:
+          transition: 1
+    default:
+    - action: light.turn_on
+      target:
+        entity_id:
+        - light.sovrum_taklampa
+        - light.murres_golvlampa_horn
+      data:
+        brightness_step_pct: -20
+        transition: 0.5
+  mode: restart
+- id: '1768693425372'
+  alias: Sovrum - MAX / AV (Långtryck Knapp 1)
+  description: Tänder 100%. Om redan starkt (>70%) -> Släck.
+  triggers:
+  - event_type: state_changed
+    event_data:
+      entity_id: event.sovrum_knapp_dorr_button_1
+    trigger: event
+  conditions:
+  - condition: template
+    value_template: '{{ trigger.event.data.new_state.attributes.event_type == ''long_press''
+      }}'
+  actions:
+  - choose:
+    - conditions:
+      - condition: state
+        entity_id: light.sovrum_taklampa
+        state: 'on'
+      - condition: numeric_state
+        entity_id: light.sovrum_taklampa
+        attribute: brightness
+        above: 180
+      sequence:
+      - action: light.turn_off
+        target:
+          entity_id:
+          - light.sovrum_taklampa
+          - light.murres_golvlampa_horn
+        data:
+          transition: 1
+    default:
+    - action: light.turn_on
+      target:
+        entity_id:
+        - light.sovrum_taklampa
+        - light.murres_golvlampa_horn
+      data:
+        brightness_pct: 100
+        color_temp: 250
+        transition: 1
+  mode: restart
+- id: '1768693444754'
+  alias: Sovrum - MYS / AV (Långtryck Knapp 2)
+  description: Aktiverar mysläge. Om redan mysigt (<50%) -> Släck.
+  triggers:
+  - event_type: state_changed
+    event_data:
+      entity_id: event.sovrum_knapp_dorr_button_2
+    trigger: event
+  conditions:
+  - condition: template
+    value_template: '{{ trigger.event.data.new_state.attributes.event_type == ''long_press''
+      }}'
+  actions:
+  - choose:
+    - conditions:
+      - condition: state
+        entity_id: light.sovrum_taklampa
+        state: 'on'
+      - condition: numeric_state
+        entity_id: light.sovrum_taklampa
+        attribute: brightness
+        below: 128
+      sequence:
+      - action: light.turn_off
+        target:
+          entity_id:
+          - light.sovrum_taklampa
+          - light.murres_golvlampa_horn
+        data:
+          transition: 1
+    default:
+    - action: light.turn_on
+      target:
+        entity_id: light.murres_golvlampa_horn
+      data:
+        brightness_pct: 20
+        color_temp: 454
+        transition: 2
+    - action: light.turn_on
+      target:
+        entity_id: light.sovrum_taklampa
+      data:
+        brightness_pct: 10
+        color_temp: 454
+        transition: 2
+  mode: restart
+- id: '1768733735639'
+  alias: Murres Rum - Ljus UPP (Knapp 1)
+  description: Tänder skrivbordslampan eller ökar styrkan.
+  triggers:
+  - event_type: state_changed
+    event_data:
+      entity_id: event.murres_knapp_dorr_button_1
+    trigger: event
+  conditions:
+  - condition: template
+    value_template: '{{ trigger.event.data.new_state.attributes.event_type == ''multi_press_1''
+      }}'
+  actions:
+  - choose:
+    - conditions:
+      - condition: state
+        entity_id: light.murres_lampor
+        state: 'off'
+      sequence:
+      - action: light.turn_on
+        target:
+          entity_id: light.murres_lampor
+        data:
+          brightness_pct: 20
+          transition: 1
+    default:
+    - action: light.turn_on
+      target:
+        entity_id: light.murres_lampor
+      data:
+        brightness_step_pct: 20
+        transition: 0.5
+  mode: restart
+- id: '1768733746964'
+  alias: Murres Rum - Ljus NER (Knapp 2)
+  description: Dimmar ner. Släcker om det redan är mörkt.
+  triggers:
+  - event_type: state_changed
+    event_data:
+      entity_id: event.murres_knapp_dorr_button_2
+    trigger: event
+  conditions:
+  - condition: template
+    value_template: '{{ trigger.event.data.new_state.attributes.event_type == ''multi_press_1''
+      }}'
+  actions:
+  - choose:
+    - conditions:
+      - condition: state
+        entity_id: light.murres_lampor
+        state: 'on'
+      - condition: numeric_state
+        entity_id: light.murres_lampor
+        attribute: brightness
+        below: 40
+      sequence:
+      - action: light.turn_off
+        target:
+          entity_id: light.murres_lampor
+        data:
+          transition: 1
+    default:
+    - action: light.turn_on
+      target:
+        entity_id: light.murres_lampor
+      data:
+        brightness_step_pct: -20
+        transition: 0.5
+  mode: restart
+- id: '1768733760465'
+  alias: Murres Rum - MAX / AV (Långtryck Knapp 1)
+  description: Max ljus för arbete/städning.
+  triggers:
+  - event_type: state_changed
+    event_data:
+      entity_id: event.murres_knapp_dorr_button_1
+    trigger: event
+  conditions:
+  - condition: template
+    value_template: '{{ trigger.event.data.new_state.attributes.event_type == ''long_press''
+      }}'
+  actions:
+  - choose:
+    - conditions:
+      - condition: state
+        entity_id: light.murres_lampor
+        state: 'on'
+      - condition: numeric_state
+        entity_id: light.murres_lampor
+        attribute: brightness
+        above: 180
+      sequence:
+      - action: light.turn_off
+        target:
+          entity_id: light.murres_lampor
+        data:
+          transition: 1
+    default:
+    - action: light.turn_on
+      target:
+        entity_id: light.murres_lampor
+      data:
+        brightness_pct: 100
+        color_temp: 250
+        transition: 1
+  mode: restart
+- id: '1768733778648'
+  alias: Murres Rum - MYS / AV (Långtryck Knapp 2)
+  description: Mysbelysning (Svagt & Varmt).
+  triggers:
+  - event_type: state_changed
+    event_data:
+      entity_id: event.murres_knapp_dorr_button_2
+    trigger: event
+  conditions:
+  - condition: template
+    value_template: '{{ trigger.event.data.new_state.attributes.event_type == ''long_press''
+      }}'
+  actions:
+  - choose:
+    - conditions:
+      - condition: state
+        entity_id: light.murres_lampor
+        state: 'on'
+      - condition: numeric_state
+        entity_id: light.murres_lampor
+        attribute: brightness
+        below: 128
+      sequence:
+      - action: light.turn_off
+        target:
+          entity_id: light.murres_lampor
+        data:
+          transition: 1
+    default:
+    - action: light.turn_on
+      target:
+        entity_id: light.murres_lampor
+      data:
+        brightness_pct: 15
+        color_temp: 454
+        transition: 2
+  mode: restart
+- id: '1768740285938'
+  alias: System - Vardagsrum Mysbelysning Logik
+  description: 'Hybrid: Blandar XY och RGB för att göra lampan nöjd.'
+  triggers:
+  - entity_id: input_select.vardagsrum_led_mysbelysning_cykel
+    trigger: state
+  actions:
+  - action: script.turn_off
+    target:
+      entity_id: script.vardagsrum_mys_loop
+  - choose:
+    - conditions:
+      - condition: state
+        entity_id: input_select.vardagsrum_led_mysbelysning_cykel
+        state: Colorloop
+      sequence:
+      - action: script.turn_on
+        target:
+          entity_id: script.vardagsrum_mys_loop
+    - conditions:
+      - condition: state
+        entity_id: input_select.vardagsrum_led_mysbelysning_cykel
+        state: Gold
+      sequence:
+      - action: light.turn_on
+        target:
+          entity_id: light.vardagsrum_ledstrip_baksida
+        data:
+          brightness_pct: 100
+          xy_color:
+          - 0.565
+          - 0.404
+    - conditions:
+      - condition: state
+        entity_id: input_select.vardagsrum_led_mysbelysning_cykel
+        state: Red
+      sequence:
+      - action: light.turn_on
+        target:
+          entity_id: light.vardagsrum_ledstrip_baksida
+        data:
+          brightness_pct: 100
+          rgb_color:
+          - 255
+          - 0
+          - 0
+    - conditions:
+      - condition: state
+        entity_id: input_select.vardagsrum_led_mysbelysning_cykel
+        state: Purple
+      sequence:
+      - action: light.turn_on
+        target:
+          entity_id: light.vardagsrum_ledstrip_baksida
+        data:
+          brightness_pct: 100
+          xy_color:
+          - 0.32
+          - 0.125
+    - conditions:
+      - condition: state
+        entity_id: input_select.vardagsrum_led_mysbelysning_cykel
+        state: Turquoise
+      sequence:
+      - action: light.turn_on
+        target:
+          entity_id: light.vardagsrum_ledstrip_baksida
+        data:
+          brightness_pct: 100
+          rgb_color:
+          - 0
+          - 255
+          - 255
+    - conditions:
+      - condition: state
+        entity_id: input_select.vardagsrum_led_mysbelysning_cykel
+        state: Blue
+      sequence:
+      - action: light.turn_on
+        target:
+          entity_id: light.vardagsrum_ledstrip_baksida
+        data:
+          brightness_pct: 100
+          xy_color:
+          - 0.136
+          - 0.04
+  mode: restart
+- id: '1769196790806'
+  alias: 'Belysning: Färgstyrning Vardagsrum'
+  description: ''
+  triggers:
+  - entity_id: input_select.vardagsrum_led_mysbelysning_cykel
+    trigger: state
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: state
+        entity_id: input_select.vardagsrum_led_mysbelysning_cykel
+        state: Gold
+      sequence:
+      - action: light.turn_on
+        target:
+          entity_id: light.vardagsrum_ledstrip_baksida
+        data:
+          color_name: gold
+          brightness_pct: 60
+    - conditions:
+      - condition: state
+        entity_id: input_select.vardagsrum_led_mysbelysning_cykel
+        state: Red
+      sequence:
+      - action: light.turn_on
+        target:
+          entity_id: light.vardagsrum_ledstrip_baksida
+        data:
+          color_name: red
+          brightness_pct: 80
+    - conditions:
+      - condition: state
+        entity_id: input_select.vardagsrum_led_mysbelysning_cykel
+        state: Purple
+      sequence:
+      - action: light.turn_on
+        target:
+          entity_id: light.vardagsrum_ledstrip_baksida
+        data:
+          color_name: purple
+          brightness_pct: 80
+    - conditions:
+      - condition: state
+        entity_id: input_select.vardagsrum_led_mysbelysning_cykel
+        state: Turquoise
+      sequence:
+      - action: light.turn_on
+        target:
+          entity_id: light.vardagsrum_ledstrip_baksida
+        data:
+          color_name: turquoise
+          brightness_pct: 80
+    - conditions:
+      - condition: state
+        entity_id: input_select.vardagsrum_led_mysbelysning_cykel
+        state: Blue
+      sequence:
+      - action: light.turn_on
+        target:
+          entity_id: light.vardagsrum_ledstrip_baksida
+        data:
+          color_name: blue
+          brightness_pct: 80
+    - conditions:
+      - condition: state
+        entity_id: input_select.vardagsrum_led_mysbelysning_cykel
+        state: Colorloop
+      sequence:
+      - action: light.turn_on
+        target:
+          entity_id: light.vardagsrum_ledstrip_baksida
+        data:
+          effect: colorloop
+          brightness_pct: 100
+  mode: single
+- id: '1769278502631'
+  alias: 'AC: Hemma-policy (day/night) + privacy'
+  triggers:
+  - minutes: /20
+    id: tick
+    trigger: time_pattern
+  - entity_id:
+    - input_number.hemma_borvarde_dag
+    - input_number.hemma_borvarde_natt
+    id: sliders
+    trigger: state
+  - entity_id: input_select.huslage
+    to: Hemma
+    id: enter_hemma
+    trigger: state
+  - at: 06:15:00
+    id: boundary_day
+    trigger: time
+  - at: '20:00:00'
+    id: boundary_night
+    trigger: time
+  - at: '22:00:00'
+    id: boundary_weekend_night
+    trigger: time
+  conditions:
+  - condition: state
+    entity_id: input_select.huslage
+    state: Hemma
+  actions:
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: '{{ trigger.id in [''enter_hemma'',''boundary_day'',''boundary_night'',''boundary_weekend_night'']
+          }}
+
+          '
+      sequence: []
+    default:
+    - condition: state
+      entity_id: input_select.huslage_cooldown
+      state: Idle
+  - variables:
+      wd: '{{ now().weekday() }}'
+      t: '{{ now().strftime(''%H:%M:%S'') }}'
+      is_weekend: '{{ wd in [4,5] }}'
+      is_day: "{% if is_weekend %}\n  {{ '06:15:00' <= t < '22:00:00' }}\n{% else
+        %}\n  {{ '06:15:00' <= t < '20:00:00' }}\n{% endif %}\n"
+      setpoint: "{% if is_day %}\n  {{ states('input_number.hemma_borvarde_dag') |
+        float }}\n{% else %}\n  {{ states('input_number.hemma_borvarde_natt') | float
+        }}\n{% endif %}\n"
+      temp_sensor: sensor.vardagsrum_kallax_temperature
+      min_ac: 16
+      max_ac: 28
+      climate_entity: climate.sandras_ac
+      ac_mode: '{{ state_attr(climate_entity, ''hvac_mode'') or states(climate_entity)
+        }}'
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: '{{ trigger.id == ''enter_hemma'' }}'
+      sequence:
+      - target:
+          entity_id: switch.stugan_cameras
+        action: switch.turn_on
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: '{{ trigger.id in [''enter_hemma'',''boundary_day'',''boundary_night'',''boundary_weekend_night'']
+          }}
+
+          '
+      sequence:
+      - choose:
+        - conditions:
+          - condition: template
+            value_template: '{{ ac_mode != ''heat'' }}'
+          sequence:
+          - target:
+              entity_id: '{{ climate_entity }}'
+            data:
+              hvac_mode: heat
+            action: climate.set_hvac_mode
+          - delay: 00:00:10
+      - target:
+          entity_id: '{{ climate_entity }}'
+        data:
+          temperature: '{{ setpoint }}'
+        action: climate.set_temperature
+      - target:
+          entity_id: input_datetime.ac_last_command
+        data:
+          datetime: '{{ now().strftime(''%Y-%m-%d %H:%M:%S'') }}'
+        action: input_datetime.set_datetime
+  - data:
+      temp_sensor: '{{ temp_sensor }}'
+      setpoint: '{{ setpoint }}'
+      min_ac: '{{ min_ac }}'
+      max_ac: '{{ max_ac }}'
+      climate_entity: '{{ climate_entity }}'
+    action: script.temp_reglerare_1_steg_1_c
+  mode: single
+- id: '1769278860222'
+  alias: 'AC: Borta-policy (sovrum) + privacy off'
+  triggers:
+  - entity_id: input_select.huslage
+    to: Borta
+    id: enter_borta
+    trigger: state
+  - minutes: /20
+    id: tick
+    trigger: time_pattern
+  - entity_id: input_number.borta_sovrum_target
+    id: slider
+    trigger: state
+  conditions:
+  - condition: state
+    entity_id: input_select.huslage
+    state: Borta
+  - condition: state
+    entity_id: input_select.huslage_cooldown
+    state: Idle
+  actions:
+  - variables:
+      temp_sensor: sensor.sovrum_temperatur
+      setpoint: '{{ states(''input_number.borta_sovrum_target'') | float }}'
+      min_ac: 16
+      max_ac: 20
+      climate_entity: climate.sandras_ac
+      ac_mode: '{{ state_attr(climate_entity, ''hvac_mode'') or states(climate_entity)
+        }}'
+  - target:
+      entity_id: switch.stugan_cameras
+    action: switch.turn_off
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: '{{ trigger.id == ''enter_borta'' }}'
+      sequence:
+      - choose:
+        - conditions:
+          - condition: template
+            value_template: '{{ ac_mode != ''heat'' }}'
+          sequence:
+          - target:
+              entity_id: '{{ climate_entity }}'
+            data:
+              hvac_mode: heat
+            action: climate.set_hvac_mode
+          - delay: 00:00:10
+      - target:
+          entity_id: '{{ climate_entity }}'
+        data:
+          temperature: '{{ min_ac }}'
+        action: climate.set_temperature
+      - target:
+          entity_id: input_datetime.ac_last_command
+        data:
+          datetime: '{{ now().strftime(''%Y-%m-%d %H:%M:%S'') }}'
+        action: input_datetime.set_datetime
+  - data:
+      temp_sensor: '{{ temp_sensor }}'
+      setpoint: '{{ setpoint }}'
+      min_ac: '{{ min_ac }}'
+      max_ac: '{{ max_ac }}'
+      climate_entity: '{{ climate_entity }}'
+    action: script.temp_reglerare_1_steg_1_c
+  mode: single
+- id: '1769278939105'
+  alias: 'AC: På_väg-policy (28+boost tills Kallax ≥20, sen På_väg-reglering)'
+  triggers:
+  - entity_id: input_select.huslage
+    to: På_väg
+    id: enter_pa_vag
+    trigger: state
+  - entity_id: input_number.pa_vag_target
+    id: slider
+    trigger: state
+  - entity_id: sensor.vardagsrum_kallax_temperature
+    above: 19.9
+    id: reached_threshold
+    trigger: numeric_state
+  - minutes: /20
+    id: tick
+    trigger: time_pattern
+  conditions:
+  - condition: state
+    entity_id: input_select.huslage
+    state: På_väg
+  actions:
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: '{{ trigger.id == ''enter_pa_vag'' }}'
+      sequence: []
+    default:
+    - condition: state
+      entity_id: input_select.huslage_cooldown
+      state: Idle
+  - variables:
+      temp_sensor: sensor.vardagsrum_kallax_temperature
+      kallax: '{{ states(temp_sensor) | float }}'
+      warmup_threshold: 20
+      warmup_temp: 28
+      setpoint: '{{ states(''input_number.pa_vag_target'') | float }}'
+      min_ac: 16
+      max_ac: 28
+      climate_entity: climate.sandras_ac
+      boost_entity: switch.boost_mode
+      ac_mode: '{{ state_attr(climate_entity, ''hvac_mode'') or states(climate_entity)
+        }}'
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: '{{ trigger.id == ''enter_pa_vag'' }}'
+      sequence:
+      - target:
+          entity_id: switch.stugan_cameras
+        action: switch.turn_off
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: '{{ kallax < warmup_threshold }}'
+      sequence:
+      - choose:
+        - conditions:
+          - condition: template
+            value_template: '{{ ac_mode != ''heat'' }}'
+          sequence:
+          - target:
+              entity_id: '{{ climate_entity }}'
+            data:
+              hvac_mode: heat
+            action: climate.set_hvac_mode
+          - delay: 00:00:10
+      - target:
+          entity_id: '{{ climate_entity }}'
+        data:
+          temperature: '{{ warmup_temp }}'
+        action: climate.set_temperature
+      - target:
+          entity_id: input_datetime.ac_last_command
+        data:
+          datetime: '{{ now().strftime(''%Y-%m-%d %H:%M:%S'') }}'
+        action: input_datetime.set_datetime
+      - delay: 00:00:02
+      - choose:
+        - conditions:
+          - condition: template
+            value_template: '{{ is_state(boost_entity, ''off'') }}'
+          sequence:
+          - target:
+              entity_id: '{{ boost_entity }}'
+            action: switch.turn_on
+    default:
+    - choose:
+      - conditions:
+        - condition: template
+          value_template: '{{ is_state(boost_entity, ''on'') }}'
+        sequence:
+        - target:
+            entity_id: '{{ boost_entity }}'
+          action: switch.turn_off
+    - choose:
+      - conditions:
+        - condition: template
+          value_template: "{{ trigger.id == 'reached_threshold'\n   or (trigger.id
+            == 'enter_pa_vag' and kallax >= warmup_threshold) }}\n"
+        sequence:
+        - variables:
+            ac_mode_now: '{{ state_attr(climate_entity, ''hvac_mode'') or states(climate_entity)
+              }}'
+        - choose:
+          - conditions:
+            - condition: template
+              value_template: '{{ ac_mode_now != ''heat'' }}'
+            sequence:
+            - target:
+                entity_id: '{{ climate_entity }}'
+              data:
+                hvac_mode: heat
+              action: climate.set_hvac_mode
+            - delay: 00:00:10
+        - target:
+            entity_id: '{{ climate_entity }}'
+          data:
+            temperature: '{{ setpoint }}'
+          action: climate.set_temperature
+        - target:
+            entity_id: input_datetime.ac_last_command
+          data:
+            datetime: '{{ now().strftime(''%Y-%m-%d %H:%M:%S'') }}'
+          action: input_datetime.set_datetime
+    - data:
+        temp_sensor: '{{ temp_sensor }}'
+        setpoint: '{{ setpoint }}'
+        min_ac: '{{ min_ac }}'
+        max_ac: '{{ max_ac }}'
+        climate_entity: '{{ climate_entity }}'
+      action: script.temp_reglerare_1_steg_1_c
+  mode: single
+- id: '1769279262294'
+  alias: 'Husläge: Orchestrator (zone.home)'
+  triggers:
+  - entity_id: zone.home
+    above: 0
+    for: 00:00:10
+    id: to_hemma
+    trigger: numeric_state
+  - entity_id: zone.home
+    below: 1
+    for: 00:03:00
+    id: to_borta
+    trigger: numeric_state
+  conditions:
+  - condition: not
+    conditions:
+    - condition: state
+      entity_id: timer.huslage_cooldown
+      state: active
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id: to_hemma
+      - condition: template
+        value_template: '{{ not is_state(''input_select.huslage'', ''Hemma'') }}'
+      sequence:
+      - target:
+          entity_id: input_select.huslage
+        data:
+          option: Hemma
+        action: input_select.select_option
+    - conditions:
+      - condition: trigger
+        id: to_borta
+      - condition: template
+        value_template: '{{ not is_state(''input_select.huslage'', ''Borta'') }}'
+      sequence:
+      - target:
+          entity_id: input_select.huslage
+        data:
+          option: Borta
+        action: input_select.select_option
+  mode: single
+- id: '1769285161841'
+  alias: 'Init: Default temperature targets'
+  triggers:
+  - event: start
+    trigger: homeassistant
+  actions:
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: '{{ states(''input_number.hemma_borvarde_dag'') in [''unknown'',
+          ''unavailable''] }}'
+      sequence:
+      - data:
+          entity_id: input_number.hemma_borvarde_dag
+          value: 20
+        action: input_number.set_value
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: '{{ states(''input_number.hemma_borvarde_natt'') in [''unknown'',
+          ''unavailable''] }}'
+      sequence:
+      - data:
+          entity_id: input_number.hemma_borvarde_natt
+          value: 16
+        action: input_number.set_value
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: '{{ states(''input_number.pa_vag_target'') in [''unknown'',
+          ''unavailable''] }}'
+      sequence:
+      - data:
+          entity_id: input_number.pa_vag_target
+          value: 20
+        action: input_number.set_value
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: '{{ states(''input_number.borta_sovrum_target'') in [''unknown'',
+          ''unavailable''] }}'
+      sequence:
+      - data:
+          entity_id: input_number.borta_sovrum_target
+          value: 8
+        action: input_number.set_value
+  mode: single
+- id: '1769287894757'
+  alias: 'UI: Husläge cooldown on change'
+  description: ''
+  triggers:
+  - entity_id: input_select.huslage
+    trigger: state
+  actions:
+  - target:
+      entity_id: timer.huslage_cooldown
+    data:
+      duration: 00:00:20
+    action: timer.start
+  mode: restart
+- id: '1769288848431'
+  alias: 'AC: Boost off when not På_väg'
+  description: ''
+  triggers:
+  - entity_id: input_select.huslage
+    trigger: state
+  conditions:
+  - condition: template
+    value_template: '{{ not is_state(''input_select.huslage'', ''På_väg'') }}'
+  actions:
+  - target:
+      entity_id: switch.boost_mode
+    action: switch.turn_off
+  mode: single
+- id: '1769337712504'
+  alias: 'Cameras: Privacy helper -> group switch'
+  description: ''
+  triggers:
+  - entity_id: input_boolean.camera_privacy
+    trigger: state
+  actions:
+  - choose:
+    - conditions:
+      - condition: state
+        entity_id: input_boolean.camera_privacy
+        state: 'on'
+      sequence:
+      - target:
+          entity_id: switch.stugan_cameras
+        action: switch.turn_on
+    - conditions:
+      - condition: state
+        entity_id: input_boolean.camera_privacy
+        state: 'off'
+      sequence:
+      - target:
+          entity_id: switch.stugan_cameras
+        action: switch.turn_off
+  mode: single
+- id: '1769337732345'
+  alias: 'Cameras: Sync helper from group switch'
+  description: ''
+  triggers:
+  - entity_id: switch.stugan_cameras
+    trigger: state
+  actions:
+  - choose:
+    - conditions:
+      - condition: state
+        entity_id: switch.stugan_cameras
+        state: 'on'
+      sequence:
+      - target:
+          entity_id: input_boolean.camera_privacy
+        action: input_boolean.turn_on
+    - conditions:
+      - condition: state
+        entity_id: switch.stugan_cameras
+        state: 'off'
+      sequence:
+      - target:
+          entity_id: input_boolean.camera_privacy
+        action: input_boolean.turn_off
+  mode: single
+- id: '1769346463710'
+  alias: 'Vardagsrum: In the mood'
+  triggers:
+  - entity_id: input_boolean.vardagsrum_in_the_mood
+    trigger: state
+  actions:
+  - choose:
+    - conditions:
+      - condition: state
+        entity_id: input_boolean.vardagsrum_in_the_mood
+        state: 'on'
+      sequence:
+      - target:
+          entity_id: script.vardagsrum_save_led_strip_previous_state
+        action: script.turn_on
+      - target:
+          entity_id: input_boolean.vardagsrum_warning_emotionally_instable
+        action: input_boolean.turn_off
+      - target:
+          entity_id: script.vardagsrum_warning_emotionally_instable_loop
+        action: script.turn_off
+      - target:
+          entity_id: light.vardagsrum_ledstrip_baksida
+        data:
+          brightness_pct: 100
+          rgb_color:
+          - 255
+          - 0
+          - 0
+          transition: 0
+        action: light.turn_on
+    - conditions:
+      - condition: state
+        entity_id: input_boolean.vardagsrum_in_the_mood
+        state: 'off'
+      - condition: state
+        entity_id: input_boolean.vardagsrum_warning_emotionally_instable
+        state: 'off'
+      sequence:
+      - target:
+          entity_id: script.vardagsrum_restore_led_strip_previous_state
+        action: script.turn_on
+  mode: restart
+- id: '1769346508149'
+  alias: 'Vardagsrum: Warning emotionally instable'
+  triggers:
+  - entity_id: input_boolean.vardagsrum_warning_emotionally_instable
+    trigger: state
+  actions:
+  - choose:
+    - conditions:
+      - condition: state
+        entity_id: input_boolean.vardagsrum_warning_emotionally_instable
+        state: 'on'
+      sequence:
+      - target:
+          entity_id: script.vardagsrum_save_led_strip_previous_state
+        action: script.turn_on
+      - target:
+          entity_id: input_boolean.vardagsrum_in_the_mood
+        action: input_boolean.turn_off
+      - target:
+          entity_id: script.vardagsrum_warning_emotionally_instable_loop
+        action: script.turn_on
+    - conditions:
+      - condition: state
+        entity_id: input_boolean.vardagsrum_warning_emotionally_instable
+        state: 'off'
+      sequence:
+      - target:
+          entity_id: script.vardagsrum_warning_emotionally_instable_loop
+        action: script.turn_off
+      - choose:
+        - conditions:
+          - condition: state
+            entity_id: input_boolean.vardagsrum_in_the_mood
+            state: 'off'
+          sequence:
+          - target:
+              entity_id: script.vardagsrum_restore_led_strip_previous_state
+            action: script.turn_on
+  mode: restart

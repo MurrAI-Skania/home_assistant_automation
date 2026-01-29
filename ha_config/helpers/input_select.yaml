@@ -1,0 +1,16 @@
+mysbelysning_cykel:
+  name: "vardagsrum_led_mysbelysning_cykel"
+  options:
+    - "Gold"
+    - "Red"
+    - "Purple"
+    - " Turquoise"
+    - "Blue"
+    - "Colorloop"
+huslage:
+  name: "husläge"
+  icon: "mdi:account-card-outline"
+  options:
+    - "Borta"
+    - "På_väg"
+    - "Hemma"
