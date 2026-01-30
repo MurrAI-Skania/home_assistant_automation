@@ -734,8 +734,12 @@
       # If quiet tick AND boost is off: Threshold = Target - 5
       # Otherwise (Manual/Arrival/Boost active): Threshold = Target
       boost_threshold: >
-        {% if trigger and trigger.id in ['tick', 'temp_change', 'startup', 'heating_resume'] and not is_boost_on %}
-          {{ setpoint - 3 }}
+        {% if trigger and trigger.id in ['tick', 'temp_change', 'startup', 'heating_resume'] %}
+          {% if is_boost_on %}
+            {{ setpoint - 0.5 }}
+          {% else %}
+            {{ setpoint - 3.0 }}
+          {% endif %}
         {% else %}
           {{ setpoint }}
         {% endif %}
@@ -784,11 +788,12 @@
         data:
           climate_entity: '{{ climate_entity }}'
           hvac_mode: heat
-          temperature: '{{ boost_setpoint }}'
+          temperature: '{{ [setpoint + 6, 28] | min }}'
           boost: true
           boost_entity: '{{ boost_entity }}'
           sleep: false
           sleep_entity: '{{ sleep_entity }}'
+          fan_speed: 100
     
     # Scenario 2: Target Reached -> Normal Regulation
     default:
@@ -833,6 +838,18 @@
         state: 'on'
       sequence:
       - stop: "Frost Guard Active - Normal Policy Disabled"
+  
+  # 1. Cameras: Immediate Action on Arrival
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: '{{ trigger.id == ''enter_borta'' }}'
+      sequence:
+      - target:
+          entity_id: input_boolean.camera_privacy
+        action: input_boolean.turn_off
+
+  # 2. Heating Guard
   - choose:
     - conditions:
       - condition: state
@@ -846,6 +863,11 @@
           boost: false
           boost_entity: switch.boost_mode
       - stop: "Heating Disabled by Global Guard"
+
+  # 3. Delay Guard: Wait 2 Hours before touching AC
+  - condition: template
+    value_template: "{{ (now() - states.input_select.huslage.last_changed).total_seconds() > 7200 }}"
+
   - variables:
       temp_sensor: sensor.indoor_min_temperature
       setpoint: '{{ states(''input_number.borta_sovrum_target'') | float }}'
@@ -853,31 +875,23 @@
       max_ac: 20
       climate_entity: climate.sandras_ac
       sleep_entity: switch.ac_sleep_mode
-  - target:
-      entity_id: input_boolean.camera_privacy
-    action: input_boolean.turn_off
-  - choose:
-    - conditions:
-      - condition: template
-        value_template: '{{ trigger.id == ''enter_borta'' }}'
-      sequence:
-      - service: script.ac_apply_state
-        data:
-          climate_entity: '{{ climate_entity }}'
-          hvac_mode: heat
-          temperature: '{{ min_ac }}'
-          boost: false
-          boost_entity: switch.boost_mode
-          sleep: true
-          sleep_entity: '{{ sleep_entity }}'
-    default:
-    - data:
-        temp_sensor: '{{ temp_sensor }}'
-        setpoint: '{{ setpoint }}'
-        min_ac: '{{ min_ac }}'
-        max_ac: '{{ max_ac }}'
-        climate_entity: '{{ climate_entity }}'
-      action: script.temp_reglerare_1_steg_1_c_via_gate
+
+  # 4. AC Logic (Delayed)
+  # Enforce Sleep Mode
+  - service: script.ac_apply_state
+    data:
+      climate_entity: '{{ climate_entity }}'
+      sleep: true
+      sleep_entity: '{{ sleep_entity }}'
+  
+  # Regulate Temperature
+  - data:
+      temp_sensor: '{{ temp_sensor }}'
+      setpoint: '{{ setpoint }}'
+      min_ac: '{{ min_ac }}'
+      max_ac: '{{ max_ac }}'
+      climate_entity: '{{ climate_entity }}'
+    action: script.temp_reglerare_1_steg_1_c_via_gate
 - id: '1769278939105'
   alias: 'AC: På_väg-policy (28+boost tills Kallax ≥20, sen På_väg-reglering)'
   triggers:
@@ -952,8 +966,12 @@
       # If quiet tick AND boost is off: Threshold = Target - 5
       # Otherwise (Manual/Arrival/Boost active): Threshold = Target
       boost_threshold: >
-        {% if trigger and trigger.id in ['tick', 'startup', 'heating_resume'] and not is_boost_on %}
-          {{ setpoint - 3 }}
+        {% if trigger and trigger.id in ['tick', 'startup', 'heating_resume'] %}
+          {% if is_boost_on %}
+            {{ setpoint - 0.5 }}
+          {% else %}
+            {{ setpoint - 3.0 }}
+          {% endif %}
         {% else %}
           {{ setpoint }}
         {% endif %}
@@ -980,11 +998,12 @@
         data:
           climate_entity: '{{ climate_entity }}'
           hvac_mode: heat
-          temperature: '{{ boost_setpoint }}'
+          temperature: '{{ [setpoint + 6, 28] | min }}'
           boost: true
           boost_entity: '{{ boost_entity }}'
           sleep: false
           sleep_entity: '{{ sleep_entity }}'
+          fan_speed: 100
     
     # Scenario 2: Target Reached -> Normal Regulation
     default:

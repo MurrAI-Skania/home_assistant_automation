@@ -15,6 +15,7 @@ This registry tracks all physical devices, helpers, and scripts used in the proj
 | `sensor.ac_outdoor_temperature` | Outdoor Temp | Controls Global Heating Guard |
 | `switch.ac_sleep_mode` | AC Sleep Mode | Toggles hardware Sleep function |
 | `switch.boost_mode` | AC Boost Mode | Toggles hardware Boost function |
+| `number.sandras_ac_fan_speed` | AC Fan Speed | Controls 0-100% Fan Speed |
 | `switch.sandras_ac_screen_display` | AC Screen Display | Controlled by Gate to hide display light |
 
 ### Logic Helpers
@@ -58,5 +59,5 @@ This registry tracks all physical devices, helpers, and scripts used in the proj
 
 | Script ID | Name | Role |
 | :--- | :--- | :--- |
-| `script.ac_apply_state` | AC Gate | **Crucial:** Single entry point. Manages Sleep, Boost, Temp, Mode, Display. |
+| `script.ac_apply_state` | AC Gate | **Crucial:** Single entry point. Manages Sleep, Boost, Temp, Mode, Fan, Display. |
 | `script.temp_reglerare_1_steg_1_c_via_gate` | Regulator | P-Controller for maintenance. 0.5°C deadband. |

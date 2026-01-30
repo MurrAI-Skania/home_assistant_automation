@@ -21,12 +21,13 @@ A robust, layered climate system designed for safety, energy efficiency, and com
     *   **Hemma (Home):**
         *   **Schedule:** Day/Night targets.
         *   **Sleep Mode:** Enforced ON at night (22:00-06:15), OFF during day.
-        *   **Boost:** Active on arrival or resume if room is **>3.0°C** below target.
+        *   **Boost:** Active if room is **>3.0°C** below target. Setpoint: **Target + 6°C** (Max 28°C), Fan 100%. Exits at Target - 0.5°C.
     *   **Borta (Away):**
+        *   **Delay:** Changes AC settings **2 hours** after departure (to utilize residual heat). Cameras turn off immediately.
         *   **Target:** Keeps **coldest room** at safety temp (via `sensor.indoor_min_temperature`).
         *   **Profile:** Sleep Mode ON (Quiet/Low Fan).
     *   **På väg (On the Way):**
-        *   **Boost:** Blasts heat until target reached.
+        *   **Boost:** Blasts heat until target reached. Same Boost profile as Hemma.
 
 ### Core Components
 *   **AC Unit:** `climate.sandras_ac` (Midea)

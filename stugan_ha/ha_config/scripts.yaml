@@ -156,6 +156,13 @@ ac_apply_state:
       description: "Switch entity for the AC Screen Display"
       required: false
       default: switch.sandras_ac_screen_display
+    fan_speed:
+      description: "Desired fan speed (0-100)"
+      required: false
+    fan_entity:
+      description: "Number entity for AC fan speed"
+      required: false
+      default: number.sandras_ac_fan_speed
   sequence:
     # 1. Load last state
     - variables:
@@ -172,15 +179,17 @@ ac_apply_state:
         desired_temperature: "{{ temperature if temperature is defined and temperature is not none else last_state.get('temperature') }}"
         desired_boost: "{{ boost if boost is defined and boost is not none else last_state.get('boost') }}"
         desired_sleep: "{{ sleep if sleep is defined and sleep is not none else last_state.get('sleep') }}"
+        desired_fan: "{{ fan_speed if fan_speed is defined and fan_speed is not none else last_state.get('fan_speed') }}"
         
         # Check what actually changed (Compare against REAL device state)
         change_hvac: "{{ desired_hvac_mode is not none and desired_hvac_mode != states(climate_entity) }}"
         change_temp: "{{ desired_temperature is not none and desired_temperature | float != state_attr(climate_entity, 'temperature') | float(desired_temperature | float) }}"
         change_boost: "{{ desired_boost is not none and boost_entity is defined and boost_entity is not none and (desired_boost != is_state(boost_entity, 'on')) }}"
         change_sleep: "{{ desired_sleep is not none and sleep_entity is defined and sleep_entity is not none and (desired_sleep != is_state(sleep_entity, 'on')) }}"
+        change_fan: "{{ desired_fan is not none and fan_entity is defined and fan_entity is not none and (desired_fan | int != states(fan_entity) | int) }}"
         
         # Should we act?
-        should_act: "{{ change_hvac or change_temp or change_boost or change_sleep }}"
+        should_act: "{{ change_hvac or change_temp or change_boost or change_sleep or change_fan }}"
 
     # 2. Dedupe
     - if:
@@ -198,7 +207,8 @@ ac_apply_state:
           {% if change_hvac %}Mode: {{ desired_hvac_mode }} {% endif %}
           {% if change_temp %}Temp: {{ desired_temperature }}°C {% endif %}
           {% if change_boost %}Boost: {{ desired_boost }} {% endif %}
-          {% if change_sleep %}Sleep: {{ desired_sleep }}{% endif %}
+          {% if change_sleep %}Sleep: {{ desired_sleep }} {% endif %}
+          {% if change_fan %}Fan: {{ desired_fan }}%{% endif %}
         entity_id: "{{ climate_entity }}"
 
     # 3. Wait for cooldown (if active)
@@ -263,8 +273,23 @@ ac_apply_state:
         - service: timer.start
           target:
             entity_id: timer.ac_command_cooldown
+        - delay: "00:00:02"
 
-    # 8. Turn Off Screen Display (Always, if we touched anything)
+    # 8. Execute - Fan Speed
+    - if:
+        - condition: template
+          value_template: "{{ change_fan and fan_entity is defined and fan_entity is not none }}"
+      then:
+        - service: number.set_value
+          target:
+            entity_id: "{{ fan_entity }}"
+          data:
+            value: "{{ desired_fan }}"
+        - service: timer.start
+          target:
+            entity_id: timer.ac_command_cooldown
+
+    # 9. Turn Off Screen Display (Always, if we touched anything)
     - if:
         - condition: template
           value_template: "{{ screen_display_entity is defined and screen_display_entity is not none }}"
@@ -273,7 +298,7 @@ ac_apply_state:
           target:
             entity_id: "{{ screen_display_entity }}"
 
-    # 9. Update Last State
+    # 10. Update Last State
     - service: input_text.set_value
       target:
         entity_id: input_text.ac_last_state_json
@@ -284,7 +309,8 @@ ac_apply_state:
               'hvac_mode': desired_hvac_mode,
               'temperature': desired_temperature,
               'boost': desired_boost,
-              'sleep': desired_sleep
+              'sleep': desired_sleep,
+              'fan_speed': desired_fan
             } | to_json
           }}
 
