@@ -152,6 +152,10 @@ ac_apply_state:
       description: "Switch entity for Sleep mode"
       required: false
       default: switch.ac_sleep_mode
+    screen_display_entity:
+      description: "Switch entity for the AC Screen Display"
+      required: false
+      default: switch.sandras_ac_screen_display
   sequence:
     # 1. Load last state
     - variables:
@@ -251,6 +255,7 @@ ac_apply_state:
         - condition: template
           value_template: "{{ change_sleep and sleep_entity is defined and sleep_entity is not none }}"
       then:
+        - delay: "00:00:02"
         - service: >
             {% if desired_sleep %} switch.turn_on {% else %} switch.turn_off {% endif %}
           target:
@@ -259,7 +264,16 @@ ac_apply_state:
           target:
             entity_id: timer.ac_command_cooldown
 
-    # 8. Update Last State
+    # 8. Turn Off Screen Display (Always, if we touched anything)
+    - if:
+        - condition: template
+          value_template: "{{ screen_display_entity is defined and screen_display_entity is not none }}"
+      then:
+        - service: switch.turn_off
+          target:
+            entity_id: "{{ screen_display_entity }}"
+
+    # 9. Update Last State
     - service: input_text.set_value
       target:
         entity_id: input_text.ac_last_state_json

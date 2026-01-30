@@ -735,7 +735,7 @@
       # Otherwise (Manual/Arrival/Boost active): Threshold = Target
       boost_threshold: >
         {% if trigger and trigger.id in ['tick', 'temp_change', 'startup', 'heating_resume'] and not is_boost_on %}
-          {{ setpoint - 5 }}
+          {{ setpoint - 3 }}
         {% else %}
           {{ setpoint }}
         {% endif %}
@@ -953,7 +953,7 @@
       # Otherwise (Manual/Arrival/Boost active): Threshold = Target
       boost_threshold: >
         {% if trigger and trigger.id in ['tick', 'startup', 'heating_resume'] and not is_boost_on %}
-          {{ setpoint - 5 }}
+          {{ setpoint - 3 }}
         {% else %}
           {{ setpoint }}
         {% endif %}
@@ -1100,22 +1100,6 @@
       duration: 00:00:20
     action: timer.start
   mode: restart
-- id: '1769288848431'
-  alias: 'AC: Boost off when Borta'
-  description: 'Safety net: Ensure boost is never left on when the house is empty.'
-  triggers:
-  - entity_id: input_select.huslage
-    trigger: state
-  conditions:
-  - condition: state
-    entity_id: input_select.huslage
-    state: Borta
-  actions:
-  - service: script.ac_apply_state
-    data:
-      climate_entity: climate.sandras_ac
-      boost: false
-      boost_entity: switch.boost_mode
   mode: single
 - id: '1769337712504'
   alias: 'Cameras: Privacy helper -> group switch'
@@ -1313,33 +1297,51 @@
     entity_id: sensor.ac_outdoor_temperature
     above: 10.5
     for: "00:30:00"
-    id: too_warm
   - platform: numeric_state
     entity_id: sensor.ac_outdoor_temperature
     below: 9.5
     for: "00:30:00"
-    id: cold_enough
-  conditions:
-  - condition: not
-    conditions:
-      - condition: state
-        entity_id: sensor.ac_outdoor_temperature
-        state: "unavailable"
-      - condition: state
-        entity_id: sensor.ac_outdoor_temperature
-        state: "unknown"
+  - platform: state
+    entity_id: sensor.ac_outdoor_temperature
+    to: 
+      - "unavailable"
+      - "unknown"
+    for: "00:01:00"
+  - event: start
+    trigger: homeassistant
+  conditions: []
   actions:
   - choose:
+    # Sensor Invalid -> Fail Safe: Enable Heating
     - conditions:
-      - condition: trigger
-        id: too_warm
+      - condition: or
+        conditions:
+          - condition: state
+            entity_id: sensor.ac_outdoor_temperature
+            state: "unavailable"
+          - condition: state
+            entity_id: sensor.ac_outdoor_temperature
+            state: "unknown"
+    # Also handle startup where state might be unknown
+    # or just simple logic:
+      sequence:
+      - target:
+          entity_id: input_boolean.heating_enabled
+        action: input_boolean.turn_on
+    # Too warm -> Heating Disabled
+    - conditions:
+      - condition: numeric_state
+        entity_id: sensor.ac_outdoor_temperature
+        above: 10.5
       sequence:
       - target:
           entity_id: input_boolean.heating_enabled
         action: input_boolean.turn_off
+    # Cold enough -> Heating Enabled
     - conditions:
-      - condition: trigger
-        id: cold_enough
+      - condition: numeric_state
+        entity_id: sensor.ac_outdoor_temperature
+        below: 9.5
       sequence:
       - target:
           entity_id: input_boolean.heating_enabled
