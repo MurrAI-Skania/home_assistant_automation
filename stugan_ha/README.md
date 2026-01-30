@@ -1,37 +1,37 @@
 # Stugan Home Assistant Logic
 
 ## 🌡️ Climate Control (AC)
-A custom "Smart Thermostat" logic built around **House Modes** (`input_select.huslage`) and a **Smart Regulator** (P-Controller).
+A robust, layered climate system designed for safety, energy efficiency, and comfort.
+
+### Architecture Layers
+1.  **Emergency Layer (Frost Guard):**
+    *   **Priority:** Highest. Overrides all other settings.
+    *   **Trigger:** If *any* indoor sensor (`sensor.indoor_min_temperature`) drops below **8.0°C** for 10 mins.
+    *   **Action:** Force AC to **Heat 8°C**, Boost Off, Sleep Off.
+    *   **Release:** When all sensors rise above **9.0°C**.
+
+2.  **Season Layer (Heating Guard):**
+    *   **Priority:** Second.
+    *   **Trigger:** Controlled by `sensor.ac_outdoor_temperature`.
+    *   **Off:** Outdoor > 10.5°C (30 min duration). AC turns **OFF**.
+    *   **On:** Outdoor < 9.5°C (30 min duration). AC allowed to run.
+
+3.  **Policy Layer (House Modes):**
+    *   **Hemma (Home):**
+        *   **Schedule:** Day/Night targets.
+        *   **Sleep Mode:** Enforced ON at night (22:00-06:15), OFF during day.
+        *   **Boost:** Active on arrival if room is cold.
+    *   **Borta (Away):**
+        *   **Target:** Keeps **coldest room** at safety temp (e.g., 8°C).
+        *   **Profile:** Sleep Mode ON (Quiet/Low Fan).
+    *   **På väg (On the Way):**
+        *   **Target:** User-defined arrival temp.
+        *   **Boost:** Blasts heat until target reached.
 
 ### Core Components
 *   **AC Unit:** `climate.sandras_ac` (Midea)
-*   **Main Sensor:** `sensor.vardagsrum_kallax_temperature` (Hemma/På väg)
-*   **Away Sensor:** `sensor.sovrum_temperatur` (Borta)
-*   **Gate Script:** `script.ac_apply_state` - The single point of entry for AC commands. Handles:
-    *   **Deduplication:** Checks real device state to prevent redundant commands.
-    *   **Pacing:** Adds delays between Temp/Boost/Eco commands to prevent overwhelming the unit.
-    *   **Logging:** Writes clear decision logs to the Logbook.
-
-### Policies (Modes)
-1.  **Hemma (Home)**
-    *   **Schedule:** Day (06:15-20:00/22:00) vs Night targets.
-    *   **Logic:** 
-        *   **Arrival:** Triggers aggressive "Boost" (Heat+Fan Max) if room is significantly cold.
-        *   **Maintenance:** Checks every 10 mins OR on temp change. Uses P-Regulation to hold target.
-        *   **Eco Enforcement:** Forces `eco: true` whenever in normal regulation.
-    *   **Safety:** 30s debounce on temp sensor to prevent jitter.
-
-2.  **Borta (Away)**
-    *   **Target:** Low static temp (e.g., 8°C or 16°C min).
-    *   **Logic:**
-        *   **Departure:** Immediately snaps AC to **16°C**, **Eco ON**, **Privacy OFF**.
-        *   **Maintenance:** Periodically regulates bedroom temp towards target, always enforcing Eco.
-
-3.  **På väg (On the Way)**
-    *   **Target:** User-defined "Arrival" target (e.g., 21°C).
-    *   **Logic:**
-        *   **Boost:** Blasts heat until `Room Temp >= Target`.
-        *   **Maintenance:** Once target reached, switches to normal regulation (Eco ON).
+*   **Gate Script:** `script.ac_apply_state` - The single point of entry. Handles deduplication, pacing (3-5s delays), and state persistence.
+*   **Regulator:** `script.temp_reglerare...` - P-Controller for precise temperature holding.
 
 ---
 
@@ -45,14 +45,13 @@ Logic for Zigbee smart switches controlling three specific zones.
 *   **Button 2 Long:** **MYS** (Cozy) Mode (Dim + Warm White) or Cycle Scenes.
 
 ### Zones
-*   **Living Room:** `light.vardagsrum_lampor` + LED Strip.
-    *   *Special:* Cycle color themes (Gold, Red, Purple, etc.) via `input_select.mysbelysning_cykel`.
+*   **Living Room:** `light.vardagsrum_lampor` + LED Strip (Color themes).
 *   **Bedroom:** `light.sovrum_taklampa` + Corner Lamp.
 *   **Murre's Room:** `light.murres_lampor`.
 
 ---
 
-## 🔒 Security & Misc
+## 🔒 Security & System
 *   **Cameras:** `input_boolean.camera_privacy` syncs directly with `switch.stugan_cameras` (Turn on privacy -> Turn on switch).
-*   **Debouncing:** Slider inputs (temperature targets) have a 2-second delay before triggering logic.
-*   **Restarts:** System state (AC Logic) refreshes immediately upon Home Assistant restart.
+*   **Debouncing:** Slider inputs have a 2-second delay.
+*   **Restarts:** System state refreshes immediately upon Home Assistant restart.

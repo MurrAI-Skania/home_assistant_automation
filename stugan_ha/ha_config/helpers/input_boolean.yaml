@@ -1,3 +1,6 @@
+heating_enabled:
+  name: "Heating Enabled (Global Guard)"
+  icon: "mdi:radiator"
 camera_privacy:
   name: "Camera privacy"
   icon: "mdi:camera"
@@ -13,3 +16,6 @@ vardagsrum_ledstrip_prev_saved:
 ac_smart_regulation:
   name: 'AC: Smart Regulation (P-Control)'
   icon: mdi:thermostat-auto
+frost_guard_active:
+  name: 'Frost Guard Active'
+  icon: 'mdi:snowflake-alert'

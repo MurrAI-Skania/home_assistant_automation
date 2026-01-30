@@ -11,21 +11,25 @@ This registry tracks all physical devices, helpers, and scripts used in the proj
 | :--- | :--- | :--- |
 | `climate.sandras_ac` | Sandra's AC | Main heating/cooling unit (Midea) |
 | `sensor.vardagsrum_kallax_temperature` | Living Room Temp | Primary sensor for Hemma & På väg logic |
-| `sensor.sovrum_temperatur` | Bedroom Temp | Primary sensor for Borta logic |
-| `switch.ac_eco_mode` | AC Eco Mode | Toggles the hardware Eco function |
+| `sensor.sovrum_temperatur` | Bedroom Temp | Used for aggregation |
+| `sensor.indoor_min_temperature` | **Min Temp** | **Key:** Tracks lowest indoor temp for Frost Guard & Borta logic |
+| `sensor.ac_outdoor_temperature` | Outdoor Temp | Controls Global Heating Guard |
+| `switch.ac_sleep_mode` | AC Sleep Mode | Toggles hardware Sleep/Quiet function |
 | `switch.boost_mode` | AC Boost Mode | Toggles hardware high-performance mode |
 
 ### Logic Helpers
 | Entity ID | Type | Description |
 | :--- | :--- | :--- |
 | `input_select.huslage` | Select | Current mode: `Hemma`, `Borta`, `På_väg` |
+| `input_boolean.heating_enabled` | Boolean | **Global Guard:** ON if cold outside, OFF if warm (>10°C) |
+| `input_boolean.frost_guard_active` | Boolean | **Emergency:** ON if indoor temp < 8°C. Overrides everything. |
 | `input_number.hemma_borvarde_dag` | Number | Target temperature during the day (Home) |
 | `input_number.hemma_borvarde_natt` | Number | Target temperature during the night (Home) |
 | `input_number.pa_vag_target` | Number | Desired temperature upon arrival |
 | `input_number.borta_sovrum_target` | Number | Minimum safety temperature when away |
 | `input_boolean.ac_smart_regulation` | Boolean | Enable/Disable P-Controller logic |
 | `input_text.ac_last_state_json` | Text | Persists desired state for deduplication |
-| `timer.ac_command_cooldown` | Timer | 20s gap between physical AC commands |
+| `timer.ac_command_cooldown` | Timer | 30s gap between physical AC commands |
 | `timer.huslage_cooldown` | Timer | 20s debounce for House Mode changes |
 
 ---
@@ -80,8 +84,8 @@ This registry tracks all physical devices, helpers, and scripts used in the proj
 
 | Script ID | Name | Role |
 | :--- | :--- | :--- |
-| `script.ac_apply_state` | AC Gate | **Crucial:** Single entry point for all AC changes |
-| `script.temp_reglerare_1_steg_1_c_via_gate` | Regulator | Calculates P-Offset for temperature maintenance |
+| `script.ac_apply_state` | AC Gate | **Crucial:** Single entry point. Manages Sleep, Boost, Temp, Mode. |
+| `script.temp_reglerare_1_steg_1_c_via_gate` | Regulator | P-Controller for temperature maintenance. |
 | `script.vardagsrum_mys_loop` | Mood Loop | Handles the slow color transitions for mood light |
 | `script.vardagsrum_save_led_strip_previous_state` | Snapshot | Saves current LED state before mood effects |
 | `script.vardagsrum_restore_led_strip_previous_state` | Restore | Reverts LED to snapshot state |

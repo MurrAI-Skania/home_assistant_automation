@@ -9,6 +9,7 @@ frontend:
 automation: !include automations.yaml
 script: !include scripts.yaml
 scene: !include scenes.yaml
+sensor: !include sensors.yaml
 
 input_boolean: !include helpers/input_boolean.yaml
 input_number: !include helpers/input_number.yaml

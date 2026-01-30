@@ -145,12 +145,13 @@ ac_apply_state:
     boost_entity:
       description: "Switch entity for boost"
       required: false
-    eco:
-      description: "ECO enabled (true/false)"
+    sleep:
+      description: "Sleep enabled (true/false)"
       required: false
-    eco_entity:
-      description: "Switch entity for ECO mode"
+    sleep_entity:
+      description: "Switch entity for Sleep mode"
       required: false
+      default: switch.ac_sleep_mode
   sequence:
     # 1. Load last state
     - variables:
@@ -166,16 +167,16 @@ ac_apply_state:
         desired_hvac_mode: "{{ hvac_mode if hvac_mode is defined and hvac_mode is not none else last_state.get('hvac_mode') }}"
         desired_temperature: "{{ temperature if temperature is defined and temperature is not none else last_state.get('temperature') }}"
         desired_boost: "{{ boost if boost is defined and boost is not none else last_state.get('boost') }}"
-        desired_eco: "{{ eco if eco is defined and eco is not none else last_state.get('eco') }}"
+        desired_sleep: "{{ sleep if sleep is defined and sleep is not none else last_state.get('sleep') }}"
         
         # Check what actually changed (Compare against REAL device state)
         change_hvac: "{{ desired_hvac_mode is not none and desired_hvac_mode != states(climate_entity) }}"
         change_temp: "{{ desired_temperature is not none and desired_temperature | float != state_attr(climate_entity, 'temperature') | float(desired_temperature | float) }}"
         change_boost: "{{ desired_boost is not none and boost_entity is defined and boost_entity is not none and (desired_boost != is_state(boost_entity, 'on')) }}"
-        change_eco: "{{ desired_eco is not none and eco_entity is defined and eco_entity is not none and (desired_eco != is_state(eco_entity, 'on')) }}"
+        change_sleep: "{{ desired_sleep is not none and sleep_entity is defined and sleep_entity is not none and (desired_sleep != is_state(sleep_entity, 'on')) }}"
         
         # Should we act?
-        should_act: "{{ change_hvac or change_temp or change_boost or change_eco }}"
+        should_act: "{{ change_hvac or change_temp or change_boost or change_sleep }}"
 
     # 2. Dedupe
     - if:
@@ -193,7 +194,7 @@ ac_apply_state:
           {% if change_hvac %}Mode: {{ desired_hvac_mode }} {% endif %}
           {% if change_temp %}Temp: {{ desired_temperature }}°C {% endif %}
           {% if change_boost %}Boost: {{ desired_boost }} {% endif %}
-          {% if change_eco %}Eco: {{ desired_eco }}{% endif %}
+          {% if change_sleep %}Sleep: {{ desired_sleep }}{% endif %}
         entity_id: "{{ climate_entity }}"
 
     # 3. Wait for cooldown (if active)
@@ -201,7 +202,7 @@ ac_apply_state:
       timeout: "00:01:00"
       continue_on_timeout: true
 
-    # 4. Execute - HVAC Mode
+    # 4. Execute - HVAC Mode (Wait 3s)
     - if:
         - condition: template
           value_template: "{{ change_hvac and desired_hvac_mode is not none }}"
@@ -216,7 +217,7 @@ ac_apply_state:
             entity_id: timer.ac_command_cooldown
         - delay: "00:00:03"
 
-    # 5. Execute - Temperature
+    # 5. Execute - Temperature (Wait 5s)
     - if:
         - condition: template
           value_template: "{{ change_temp and desired_temperature is not none }}"
@@ -229,9 +230,9 @@ ac_apply_state:
         - service: timer.start
           target:
             entity_id: timer.ac_command_cooldown
-        - delay: "00:00:02"
+        - delay: "00:00:05"
     
-    # 6. Execute - Boost
+    # 6. Execute - Boost (Wait 5s)
     - if:
         - condition: template
           value_template: "{{ change_boost and boost_entity is defined and boost_entity is not none }}"
@@ -243,17 +244,17 @@ ac_apply_state:
         - service: timer.start
           target:
             entity_id: timer.ac_command_cooldown
-        - delay: "00:00:02"
+        - delay: "00:00:05"
 
-    # 7. Execute - ECO
+    # 7. Execute - Sleep
     - if:
         - condition: template
-          value_template: "{{ change_eco and eco_entity is defined and eco_entity is not none }}"
+          value_template: "{{ change_sleep and sleep_entity is defined and sleep_entity is not none }}"
       then:
         - service: >
-            {% if desired_eco %} switch.turn_on {% else %} switch.turn_off {% endif %}
+            {% if desired_sleep %} switch.turn_on {% else %} switch.turn_off {% endif %}
           target:
-            entity_id: "{{ eco_entity }}"
+            entity_id: "{{ sleep_entity }}"
         - service: timer.start
           target:
             entity_id: timer.ac_command_cooldown
@@ -269,7 +270,7 @@ ac_apply_state:
               'hvac_mode': desired_hvac_mode,
               'temperature': desired_temperature,
               'boost': desired_boost,
-              'eco': desired_eco
+              'sleep': desired_sleep
             } | to_json
           }}
 
@@ -287,8 +288,6 @@ temp_reglerare_1_steg_1_c_via_gate:
       description: Max setpoint på AC
     climate_entity:
       description: Vilken climate som styrs
-    eco_entity:
-      description: Switch entity for ECO mode
   sequence:
   - variables:
       t: "{{ states(temp_sensor) | float(0) }}"
@@ -334,13 +333,16 @@ temp_reglerare_1_steg_1_c_via_gate:
           entity_id: "{{ ac }}"
 
   # Call gate with new temp AND ensure ECO is ON during regulation
-  # Also enforce Heat mode and Boost Off safety
-  - service: script.ac_apply_state
-    data:
-      climate_entity: "{{ ac }}"
-      temperature: "{{ next_temp }}"
-      hvac_mode: heat
-      boost: false
-      boost_entity: switch.boost_mode
-      eco: true
-      eco_entity: "{{ eco_entity }}"
+  # Only call if we actually need to change Temp, Mode, or Boost.
+  # This prevents spamming "Eco On" when the system is otherwise stable.
+  - if:
+      - condition: template
+        value_template: "{{ next_temp != ac_set or states(ac) != 'heat' or is_state('switch.boost_mode', 'on') }}"
+    then:
+      - service: script.ac_apply_state
+        data:
+          climate_entity: "{{ ac }}"
+          temperature: "{{ next_temp }}"
+          hvac_mode: heat
+          boost: false
+          boost_entity: switch.boost_mode

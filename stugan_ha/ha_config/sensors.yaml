@@ -1,0 +1,9 @@
+- platform: min_max
+  name: "Indoor Min Temperature"
+  unique_id: indoor_min_temperature
+  type: min
+  entity_ids:
+    - sensor.kok_klimatsensor_temperature
+    - sensor.sovrum_temperatur
+    - sensor.vardagsrum_kallax_temperature
+    - sensor.ac_indoor_temperature

@@ -656,18 +656,38 @@
   - at: '22:00:00'
     id: boundary_weekend_night
     trigger: time
-  - entity_id: sensor.vardagsrum_kallax_temperature
-    id: temp_change
-    trigger: state
-    for: "00:00:30"
   - event: start
     id: startup
     trigger: homeassistant
+  - entity_id: input_boolean.heating_enabled
+    to: 'on'
+    id: heating_resume
+    trigger: state
   conditions:
   - condition: state
     entity_id: input_select.huslage
     state: Hemma
   actions:
+  - choose:
+    - conditions:
+      - condition: state
+        entity_id: input_boolean.frost_guard_active
+        state: 'on'
+      sequence:
+      - stop: "Frost Guard Active - Normal Policy Disabled"
+  - choose:
+    - conditions:
+      - condition: state
+        entity_id: input_boolean.heating_enabled
+        state: 'off'
+      sequence:
+      - service: script.ac_apply_state
+        data:
+          climate_entity: climate.sandras_ac
+          hvac_mode: 'off'
+          boost: false
+          boost_entity: switch.boost_mode
+      - stop: "Heating Disabled by Global Guard"
   - choose:
     - conditions:
       - condition: template
@@ -688,6 +708,7 @@
         {% else %}
           {{ '06:15:00' <= t < '20:00:00' }}
         {% endif %}
+      is_night: "{{ not is_day }}"
       setpoint: "{% if is_day %}
   {{ states('input_number.hemma_borvarde_dag') |
     float }}
@@ -713,7 +734,7 @@
       # If quiet tick AND boost is off: Threshold = Target - 5
       # Otherwise (Manual/Arrival/Boost active): Threshold = Target
       boost_threshold: >
-        {% if trigger and trigger.id in ['tick', 'temp_change', 'startup'] and not is_boost_on %}
+        {% if trigger and trigger.id in ['tick', 'temp_change', 'startup', 'heating_resume'] and not is_boost_on %}
           {{ setpoint - 5 }}
         {% else %}
           {{ setpoint }}
@@ -722,15 +743,37 @@
       boost_setpoint: '{{ [setpoint + 5, max_ac] | min }}'
       climate_entity: climate.sandras_ac
       boost_entity: switch.boost_mode
-      eco_entity: switch.ac_eco_mode
+      sleep_entity: switch.ac_sleep_mode
+  - choose:
+    - conditions:
+      - condition: state
+        entity_id: input_boolean.heating_enabled
+        state: 'off'
+      sequence:
+      - service: script.ac_apply_state
+        data:
+          climate_entity: climate.sandras_ac
+          hvac_mode: 'off'
+          boost: false
+          boost_entity: switch.boost_mode
+      - stop: "Heating Disabled by Global Guard"
   - choose:
     - conditions:
       - condition: template
-        value_template: '{{ trigger.id == ''enter_hemma'' }}'
+        value_template: '{{ trigger.id in [''enter_hemma'', ''boundary_day'', ''boundary_night'', ''boundary_weekend_night'', ''startup''] }}'
       sequence:
-      - target:
-          entity_id: input_boolean.camera_privacy
-        action: input_boolean.turn_on
+      - if:
+          - condition: template
+            value_template: '{{ trigger.id == ''enter_hemma'' }}'
+        then:
+          - target:
+              entity_id: input_boolean.camera_privacy
+            action: input_boolean.turn_on
+      - service: script.ac_apply_state
+        data:
+          climate_entity: '{{ climate_entity }}'
+          sleep: '{{ is_night }}'
+          sleep_entity: '{{ sleep_entity }}'
   - choose:
     # Scenario 1: Below Threshold -> Boost Mode
     - conditions:
@@ -744,27 +787,17 @@
           temperature: '{{ boost_setpoint }}'
           boost: true
           boost_entity: '{{ boost_entity }}'
-          eco: false
-          eco_entity: '{{ eco_entity }}'
+          sleep: false
+          sleep_entity: '{{ sleep_entity }}'
     
     # Scenario 2: Target Reached -> Normal Regulation
     default:
-      - service: script.ac_apply_state
-        data:
-          climate_entity: '{{ climate_entity }}'
-          hvac_mode: heat
-          temperature: '{{ setpoint }}'
-          boost: false
-          boost_entity: '{{ boost_entity }}'
-          eco: true
-          eco_entity: '{{ eco_entity }}'
       - data:
           temp_sensor: '{{ temp_sensor }}'
           setpoint: '{{ setpoint }}'
           min_ac: '{{ min_ac }}'
           max_ac: '{{ max_ac }}'
           climate_entity: '{{ climate_entity }}'
-          eco_entity: '{{ eco_entity }}'
         action: script.temp_reglerare_1_steg_1_c_via_gate
   mode: single
 
@@ -781,6 +814,10 @@
   - event: start
     id: startup
     trigger: homeassistant
+  - entity_id: input_boolean.heating_enabled
+    to: 'on'
+    id: heating_resume
+    trigger: state
   conditions:
   - condition: state
     entity_id: input_select.huslage
@@ -789,13 +826,33 @@
     entity_id: timer.huslage_cooldown
     state: idle
   actions:
+  - choose:
+    - conditions:
+      - condition: state
+        entity_id: input_boolean.frost_guard_active
+        state: 'on'
+      sequence:
+      - stop: "Frost Guard Active - Normal Policy Disabled"
+  - choose:
+    - conditions:
+      - condition: state
+        entity_id: input_boolean.heating_enabled
+        state: 'off'
+      sequence:
+      - service: script.ac_apply_state
+        data:
+          climate_entity: climate.sandras_ac
+          hvac_mode: 'off'
+          boost: false
+          boost_entity: switch.boost_mode
+      - stop: "Heating Disabled by Global Guard"
   - variables:
-      temp_sensor: sensor.sovrum_temperatur
+      temp_sensor: sensor.indoor_min_temperature
       setpoint: '{{ states(''input_number.borta_sovrum_target'') | float }}'
       min_ac: 16
       max_ac: 20
       climate_entity: climate.sandras_ac
-      eco_entity: switch.ac_eco_mode
+      sleep_entity: switch.ac_sleep_mode
   - target:
       entity_id: input_boolean.camera_privacy
     action: input_boolean.turn_off
@@ -811,8 +868,8 @@
           temperature: '{{ min_ac }}'
           boost: false
           boost_entity: switch.boost_mode
-          eco: true
-          eco_entity: '{{ eco_entity }}'
+          sleep: true
+          sleep_entity: '{{ sleep_entity }}'
     default:
     - data:
         temp_sensor: '{{ temp_sensor }}'
@@ -820,8 +877,6 @@
         min_ac: '{{ min_ac }}'
         max_ac: '{{ max_ac }}'
         climate_entity: '{{ climate_entity }}'
-        eco_entity: '{{ eco_entity }}'
-        eco: true
       action: script.temp_reglerare_1_steg_1_c_via_gate
 - id: '1769278939105'
   alias: 'AC: På_väg-policy (28+boost tills Kallax ≥20, sen På_väg-reglering)'
@@ -839,6 +894,10 @@
   - event: start
     id: startup
     trigger: homeassistant
+  - entity_id: input_boolean.heating_enabled
+    to: 'on'
+    id: heating_resume
+    trigger: state
   conditions:
   - condition: state
     entity_id: input_select.huslage
@@ -846,13 +905,33 @@
   actions:
   - choose:
     - conditions:
+      - condition: state
+        entity_id: input_boolean.frost_guard_active
+        state: 'on'
+      sequence:
+      - stop: "Frost Guard Active - Normal Policy Disabled"
+  - choose:
+    - conditions:
+      - condition: state
+        entity_id: input_boolean.heating_enabled
+        state: 'off'
+      sequence:
+      - service: script.ac_apply_state
+        data:
+          climate_entity: climate.sandras_ac
+          hvac_mode: 'off'
+          boost: false
+          boost_entity: switch.boost_mode
+      - stop: "Heating Disabled by Global Guard"
+  - choose:
+    - conditions:
       - condition: template
         value_template: '{{ trigger.id == ''enter_pa_vag'' }}'
       sequence: []
     default:
     - condition: state
-      entity_id: timer.huslage_cooldown
-      state: idle
+      entity_id: input_select.huslage_cooldown
+      state: Idle
   - variables:
       temp_sensor: sensor.vardagsrum_kallax_temperature
       current_temp: '{{ states(temp_sensor) | float }}'
@@ -873,7 +952,7 @@
       # If quiet tick AND boost is off: Threshold = Target - 5
       # Otherwise (Manual/Arrival/Boost active): Threshold = Target
       boost_threshold: >
-        {% if trigger and trigger.id in ['tick', 'startup'] and not is_boost_on %}
+        {% if trigger and trigger.id in ['tick', 'startup', 'heating_resume'] and not is_boost_on %}
           {{ setpoint - 5 }}
         {% else %}
           {{ setpoint }}
@@ -882,7 +961,7 @@
       boost_setpoint: '{{ [setpoint + 5, max_ac] | min }}'
       climate_entity: climate.sandras_ac
       boost_entity: switch.boost_mode
-      eco_entity: switch.ac_eco_mode
+      sleep_entity: switch.ac_sleep_mode
   - choose:
     - conditions:
       - condition: template
@@ -904,27 +983,17 @@
           temperature: '{{ boost_setpoint }}'
           boost: true
           boost_entity: '{{ boost_entity }}'
-          eco: false
-          eco_entity: '{{ eco_entity }}'
+          sleep: false
+          sleep_entity: '{{ sleep_entity }}'
     
     # Scenario 2: Target Reached -> Normal Regulation
     default:
-      - service: script.ac_apply_state
-        data:
-          climate_entity: '{{ climate_entity }}'
-          hvac_mode: heat
-          temperature: '{{ setpoint }}'
-          boost: false
-          boost_entity: '{{ boost_entity }}'
-          eco: true
-          eco_entity: '{{ eco_entity }}'
       - data:
           temp_sensor: '{{ temp_sensor }}'
           setpoint: '{{ setpoint }}'
           min_ac: '{{ min_ac }}'
           max_ac: '{{ max_ac }}'
           climate_entity: '{{ climate_entity }}'
-          eco_entity: '{{ eco_entity }}'
         action: script.temp_reglerare_1_steg_1_c_via_gate
   mode: single
 - id: '1769279262294'
@@ -1236,3 +1305,111 @@
           entity_id: automation.ac_pa_vag_policy_28_boost_tills_kallax_20_sen_pa_vag_reglering
         data:
           skip_condition: false
+- id: '1769350000001'
+  alias: 'System: Outdoor Temp Cutoff'
+  description: 'Global Heating Guard based on Outdoor Temperature.'
+  triggers:
+  - platform: numeric_state
+    entity_id: sensor.ac_outdoor_temperature
+    above: 10.5
+    for: "00:30:00"
+    id: too_warm
+  - platform: numeric_state
+    entity_id: sensor.ac_outdoor_temperature
+    below: 9.5
+    for: "00:30:00"
+    id: cold_enough
+  conditions:
+  - condition: not
+    conditions:
+      - condition: state
+        entity_id: sensor.ac_outdoor_temperature
+        state: "unavailable"
+      - condition: state
+        entity_id: sensor.ac_outdoor_temperature
+        state: "unknown"
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id: too_warm
+      sequence:
+      - target:
+          entity_id: input_boolean.heating_enabled
+        action: input_boolean.turn_off
+    - conditions:
+      - condition: trigger
+        id: cold_enough
+      sequence:
+      - target:
+          entity_id: input_boolean.heating_enabled
+        action: input_boolean.turn_on
+  mode: restart
+
+- id: '1769350000002'
+  alias: 'AC: Frost Guard (Global)'
+  description: 'Emergency heating if any room drops below 8.0°C'
+  mode: single
+  triggers:
+  - platform: template
+    id: too_cold
+    value_template: >
+      {% set sensors = [
+        'sensor.vardagsrum_kallax_temperature',
+        'sensor.sovrum_temperatur',
+        'sensor.kok_klimatsensor_temperature',
+        'sensor.ac_indoor_temperature'
+      ] %}
+      {% set vals = sensors | map('states') | map('float', none) | reject('eq', none) | list %}
+      {{ vals | length > 0 and (vals | min) <= 8.0 }}
+    for: "00:10:00"
+  - minutes: "/10"
+    id: tick
+    trigger: time_pattern
+  - event: start
+    id: startup
+    trigger: homeassistant
+  conditions: []
+  actions:
+  - variables:
+      sensors: >
+        {{ [
+          'sensor.vardagsrum_kallax_temperature',
+          'sensor.sovrum_temperatur',
+          'sensor.kok_klimatsensor_temperature',
+          'sensor.ac_indoor_temperature'
+        ] }}
+      temps: >
+        {{ sensors | map('states') | map('float', none) | reject('eq', none) | list }}
+      min_temp: "{{ temps | min if temps|length > 0 else none }}"
+      frost_target: 8.0
+      release: 9.0
+  - choose:
+    # Activate Frost Guard
+    - conditions:
+      - condition: template
+        value_template: "{{ min_temp is not none and min_temp <= frost_target }}"
+      sequence:
+      - target:
+          entity_id: input_boolean.frost_guard_active
+        action: input_boolean.turn_on
+      - service: script.ac_apply_state
+        data:
+          climate_entity: climate.sandras_ac
+          hvac_mode: heat
+          temperature: "{{ frost_target }}"
+          boost: false
+          boost_entity: switch.boost_mode
+          sleep: false
+          sleep_entity: switch.ac_sleep_mode
+    # Deactivate Frost Guard
+    - conditions:
+      - condition: state
+        entity_id: input_boolean.frost_guard_active
+        state: "on"
+      - condition: template
+        value_template: "{{ min_temp is not none and min_temp >= release }}"
+      sequence:
+      - target:
+          entity_id: input_boolean.frost_guard_active
+        action: input_boolean.turn_off
