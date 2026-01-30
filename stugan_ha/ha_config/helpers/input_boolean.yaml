@@ -10,3 +10,6 @@ vardagsrum_warning_emotionally_instable:
 vardagsrum_ledstrip_prev_saved:
   name: "vardagsrum ledstrip prev saved"
   icon: "mdi:content-save"
+ac_smart_regulation:
+  name: 'AC: Smart Regulation (P-Control)'
+  icon: mdi:thermostat-auto

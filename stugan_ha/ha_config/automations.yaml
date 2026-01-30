@@ -640,14 +640,9 @@
 - id: '1769278502631'
   alias: 'AC: Hemma-policy (day/night) + privacy'
   triggers:
-  - minutes: /20
+  - minutes: /10
     id: tick
     trigger: time_pattern
-  - entity_id:
-    - input_number.hemma_borvarde_dag
-    - input_number.hemma_borvarde_natt
-    id: sliders
-    trigger: state
   - entity_id: input_select.huslage
     to: Hemma
     id: enter_hemma
@@ -661,6 +656,13 @@
   - at: '22:00:00'
     id: boundary_weekend_night
     trigger: time
+  - entity_id: sensor.vardagsrum_kallax_temperature
+    id: temp_change
+    trigger: state
+    for: "00:00:30"
+  - event: start
+    id: startup
+    trigger: homeassistant
   conditions:
   - condition: state
     entity_id: input_select.huslage
@@ -670,74 +672,102 @@
     - conditions:
       - condition: template
         value_template: '{{ trigger.id in [''enter_hemma'',''boundary_day'',''boundary_night'',''boundary_weekend_night'']
-          }}
-
-          '
+          }}'
       sequence: []
     default:
     - condition: state
-      entity_id: input_select.huslage_cooldown
-      state: Idle
+      entity_id: timer.huslage_cooldown
+      state: idle
   - variables:
       wd: '{{ now().weekday() }}'
       t: '{{ now().strftime(''%H:%M:%S'') }}'
       is_weekend: '{{ wd in [4,5] }}'
-      is_day: "{% if is_weekend %}\n  {{ '06:15:00' <= t < '22:00:00' }}\n{% else
-        %}\n  {{ '06:15:00' <= t < '20:00:00' }}\n{% endif %}\n"
-      setpoint: "{% if is_day %}\n  {{ states('input_number.hemma_borvarde_dag') |
-        float }}\n{% else %}\n  {{ states('input_number.hemma_borvarde_natt') | float
-        }}\n{% endif %}\n"
+      is_day: >
+        {% if is_weekend %}
+          {{ '06:15:00' <= t < '22:00:00' }}
+        {% else %}
+          {{ '06:15:00' <= t < '20:00:00' }}
+        {% endif %}
+      setpoint: "{% if is_day %}
+  {{ states('input_number.hemma_borvarde_dag') |
+    float }}
+{% else %}
+  {{ states('input_number.hemma_borvarde_natt') | float
+    }}
+{% endif %}"
       temp_sensor: sensor.vardagsrum_kallax_temperature
+      current_temp: '{{ states(temp_sensor) | float }}'
       min_ac: 16
       max_ac: 28
+      
+      # Boost Logic with Hysteresis
+      last_state_json: "{{ states('input_text.ac_last_state_json') }}"
+      last_state: >
+        {% if last_state_json in ['unknown', 'unavailable', '', 'None'] %}
+          {}
+        {% else %}
+          {{ last_state_json | from_json }}
+        {% endif %}
+      is_boost_on: "{{ last_state.get('boost', false) }}"
+      
+      # If quiet tick AND boost is off: Threshold = Target - 5
+      # Otherwise (Manual/Arrival/Boost active): Threshold = Target
+      boost_threshold: >
+        {% if trigger and trigger.id in ['tick', 'temp_change', 'startup'] and not is_boost_on %}
+          {{ setpoint - 5 }}
+        {% else %}
+          {{ setpoint }}
+        {% endif %}
+      
+      boost_setpoint: '{{ [setpoint + 5, max_ac] | min }}'
       climate_entity: climate.sandras_ac
-      ac_mode: '{{ state_attr(climate_entity, ''hvac_mode'') or states(climate_entity)
-        }}'
+      boost_entity: switch.boost_mode
+      eco_entity: switch.ac_eco_mode
   - choose:
     - conditions:
       - condition: template
         value_template: '{{ trigger.id == ''enter_hemma'' }}'
       sequence:
       - target:
-          entity_id: switch.stugan_cameras
-        action: switch.turn_on
+          entity_id: input_boolean.camera_privacy
+        action: input_boolean.turn_on
   - choose:
+    # Scenario 1: Below Threshold -> Boost Mode
     - conditions:
       - condition: template
-        value_template: '{{ trigger.id in [''enter_hemma'',''boundary_day'',''boundary_night'',''boundary_weekend_night'']
-          }}
-
-          '
+        value_template: '{{ current_temp < (boost_threshold | float) }}'
       sequence:
-      - choose:
-        - conditions:
-          - condition: template
-            value_template: '{{ ac_mode != ''heat'' }}'
-          sequence:
-          - target:
-              entity_id: '{{ climate_entity }}'
-            data:
-              hvac_mode: heat
-            action: climate.set_hvac_mode
-          - delay: 00:00:10
-      - target:
-          entity_id: '{{ climate_entity }}'
+      - service: script.ac_apply_state
         data:
+          climate_entity: '{{ climate_entity }}'
+          hvac_mode: heat
+          temperature: '{{ boost_setpoint }}'
+          boost: true
+          boost_entity: '{{ boost_entity }}'
+          eco: false
+          eco_entity: '{{ eco_entity }}'
+    
+    # Scenario 2: Target Reached -> Normal Regulation
+    default:
+      - service: script.ac_apply_state
+        data:
+          climate_entity: '{{ climate_entity }}'
+          hvac_mode: heat
           temperature: '{{ setpoint }}'
-        action: climate.set_temperature
-      - target:
-          entity_id: input_datetime.ac_last_command
-        data:
-          datetime: '{{ now().strftime(''%Y-%m-%d %H:%M:%S'') }}'
-        action: input_datetime.set_datetime
-  - data:
-      temp_sensor: '{{ temp_sensor }}'
-      setpoint: '{{ setpoint }}'
-      min_ac: '{{ min_ac }}'
-      max_ac: '{{ max_ac }}'
-      climate_entity: '{{ climate_entity }}'
-    action: script.temp_reglerare_1_steg_1_c
+          boost: false
+          boost_entity: '{{ boost_entity }}'
+          eco: true
+          eco_entity: '{{ eco_entity }}'
+      - data:
+          temp_sensor: '{{ temp_sensor }}'
+          setpoint: '{{ setpoint }}'
+          min_ac: '{{ min_ac }}'
+          max_ac: '{{ max_ac }}'
+          climate_entity: '{{ climate_entity }}'
+          eco_entity: '{{ eco_entity }}'
+        action: script.temp_reglerare_1_steg_1_c_via_gate
   mode: single
+
 - id: '1769278860222'
   alias: 'AC: Borta-policy (sovrum) + privacy off'
   triggers:
@@ -745,19 +775,19 @@
     to: Borta
     id: enter_borta
     trigger: state
-  - minutes: /20
+  - minutes: /10
     id: tick
     trigger: time_pattern
-  - entity_id: input_number.borta_sovrum_target
-    id: slider
-    trigger: state
+  - event: start
+    id: startup
+    trigger: homeassistant
   conditions:
   - condition: state
     entity_id: input_select.huslage
     state: Borta
   - condition: state
-    entity_id: input_select.huslage_cooldown
-    state: Idle
+    entity_id: timer.huslage_cooldown
+    state: idle
   actions:
   - variables:
       temp_sensor: sensor.sovrum_temperatur
@@ -765,45 +795,34 @@
       min_ac: 16
       max_ac: 20
       climate_entity: climate.sandras_ac
-      ac_mode: '{{ state_attr(climate_entity, ''hvac_mode'') or states(climate_entity)
-        }}'
+      eco_entity: switch.ac_eco_mode
   - target:
-      entity_id: switch.stugan_cameras
-    action: switch.turn_off
+      entity_id: input_boolean.camera_privacy
+    action: input_boolean.turn_off
   - choose:
     - conditions:
       - condition: template
         value_template: '{{ trigger.id == ''enter_borta'' }}'
       sequence:
-      - choose:
-        - conditions:
-          - condition: template
-            value_template: '{{ ac_mode != ''heat'' }}'
-          sequence:
-          - target:
-              entity_id: '{{ climate_entity }}'
-            data:
-              hvac_mode: heat
-            action: climate.set_hvac_mode
-          - delay: 00:00:10
-      - target:
-          entity_id: '{{ climate_entity }}'
+      - service: script.ac_apply_state
         data:
+          climate_entity: '{{ climate_entity }}'
+          hvac_mode: heat
           temperature: '{{ min_ac }}'
-        action: climate.set_temperature
-      - target:
-          entity_id: input_datetime.ac_last_command
-        data:
-          datetime: '{{ now().strftime(''%Y-%m-%d %H:%M:%S'') }}'
-        action: input_datetime.set_datetime
-  - data:
-      temp_sensor: '{{ temp_sensor }}'
-      setpoint: '{{ setpoint }}'
-      min_ac: '{{ min_ac }}'
-      max_ac: '{{ max_ac }}'
-      climate_entity: '{{ climate_entity }}'
-    action: script.temp_reglerare_1_steg_1_c
-  mode: single
+          boost: false
+          boost_entity: switch.boost_mode
+          eco: true
+          eco_entity: '{{ eco_entity }}'
+    default:
+    - data:
+        temp_sensor: '{{ temp_sensor }}'
+        setpoint: '{{ setpoint }}'
+        min_ac: '{{ min_ac }}'
+        max_ac: '{{ max_ac }}'
+        climate_entity: '{{ climate_entity }}'
+        eco_entity: '{{ eco_entity }}'
+        eco: true
+      action: script.temp_reglerare_1_steg_1_c_via_gate
 - id: '1769278939105'
   alias: 'AC: På_väg-policy (28+boost tills Kallax ≥20, sen På_väg-reglering)'
   triggers:
@@ -811,16 +830,15 @@
     to: På_väg
     id: enter_pa_vag
     trigger: state
-  - entity_id: input_number.pa_vag_target
-    id: slider
-    trigger: state
-  - entity_id: sensor.vardagsrum_kallax_temperature
-    above: 19.9
+  - platform: template
+    value_template: "{{ states('sensor.vardagsrum_kallax_temperature')|float >= states('input_number.pa_vag_target')|float }}"
     id: reached_threshold
-    trigger: numeric_state
-  - minutes: /20
+  - minutes: /10
     id: tick
     trigger: time_pattern
+  - event: start
+    id: startup
+    trigger: homeassistant
   conditions:
   - condition: state
     entity_id: input_select.huslage
@@ -833,109 +851,81 @@
       sequence: []
     default:
     - condition: state
-      entity_id: input_select.huslage_cooldown
-      state: Idle
+      entity_id: timer.huslage_cooldown
+      state: idle
   - variables:
       temp_sensor: sensor.vardagsrum_kallax_temperature
-      kallax: '{{ states(temp_sensor) | float }}'
-      warmup_threshold: 20
-      warmup_temp: 28
+      current_temp: '{{ states(temp_sensor) | float }}'
       setpoint: '{{ states(''input_number.pa_vag_target'') | float }}'
       min_ac: 16
       max_ac: 28
+      
+      # Boost Logic with Hysteresis
+      last_state_json: "{{ states('input_text.ac_last_state_json') }}"
+      last_state: >
+        {% if last_state_json in ['unknown', 'unavailable', '', 'None'] %}
+          {}
+        {% else %}
+          {{ last_state_json | from_json }}
+        {% endif %}
+      is_boost_on: "{{ last_state.get('boost', false) }}"
+      
+      # If quiet tick AND boost is off: Threshold = Target - 5
+      # Otherwise (Manual/Arrival/Boost active): Threshold = Target
+      boost_threshold: >
+        {% if trigger and trigger.id in ['tick', 'startup'] and not is_boost_on %}
+          {{ setpoint - 5 }}
+        {% else %}
+          {{ setpoint }}
+        {% endif %}
+      
+      boost_setpoint: '{{ [setpoint + 5, max_ac] | min }}'
       climate_entity: climate.sandras_ac
       boost_entity: switch.boost_mode
-      ac_mode: '{{ state_attr(climate_entity, ''hvac_mode'') or states(climate_entity)
-        }}'
+      eco_entity: switch.ac_eco_mode
   - choose:
     - conditions:
       - condition: template
         value_template: '{{ trigger.id == ''enter_pa_vag'' }}'
       sequence:
       - target:
-          entity_id: switch.stugan_cameras
-        action: switch.turn_off
+          entity_id: input_boolean.camera_privacy
+        action: input_boolean.turn_off
   - choose:
+    # Scenario 1: Below Threshold -> Boost Mode
     - conditions:
       - condition: template
-        value_template: '{{ kallax < warmup_threshold }}'
+        value_template: '{{ current_temp < (boost_threshold | float) }}'
       sequence:
-      - choose:
-        - conditions:
-          - condition: template
-            value_template: '{{ ac_mode != ''heat'' }}'
-          sequence:
-          - target:
-              entity_id: '{{ climate_entity }}'
-            data:
-              hvac_mode: heat
-            action: climate.set_hvac_mode
-          - delay: 00:00:10
-      - target:
-          entity_id: '{{ climate_entity }}'
+      - service: script.ac_apply_state
         data:
-          temperature: '{{ warmup_temp }}'
-        action: climate.set_temperature
-      - target:
-          entity_id: input_datetime.ac_last_command
-        data:
-          datetime: '{{ now().strftime(''%Y-%m-%d %H:%M:%S'') }}'
-        action: input_datetime.set_datetime
-      - delay: 00:00:02
-      - choose:
-        - conditions:
-          - condition: template
-            value_template: '{{ is_state(boost_entity, ''off'') }}'
-          sequence:
-          - target:
-              entity_id: '{{ boost_entity }}'
-            action: switch.turn_on
+          climate_entity: '{{ climate_entity }}'
+          hvac_mode: heat
+          temperature: '{{ boost_setpoint }}'
+          boost: true
+          boost_entity: '{{ boost_entity }}'
+          eco: false
+          eco_entity: '{{ eco_entity }}'
+    
+    # Scenario 2: Target Reached -> Normal Regulation
     default:
-    - choose:
-      - conditions:
-        - condition: template
-          value_template: '{{ is_state(boost_entity, ''on'') }}'
-        sequence:
-        - target:
-            entity_id: '{{ boost_entity }}'
-          action: switch.turn_off
-    - choose:
-      - conditions:
-        - condition: template
-          value_template: "{{ trigger.id == 'reached_threshold'\n   or (trigger.id
-            == 'enter_pa_vag' and kallax >= warmup_threshold) }}\n"
-        sequence:
-        - variables:
-            ac_mode_now: '{{ state_attr(climate_entity, ''hvac_mode'') or states(climate_entity)
-              }}'
-        - choose:
-          - conditions:
-            - condition: template
-              value_template: '{{ ac_mode_now != ''heat'' }}'
-            sequence:
-            - target:
-                entity_id: '{{ climate_entity }}'
-              data:
-                hvac_mode: heat
-              action: climate.set_hvac_mode
-            - delay: 00:00:10
-        - target:
-            entity_id: '{{ climate_entity }}'
-          data:
-            temperature: '{{ setpoint }}'
-          action: climate.set_temperature
-        - target:
-            entity_id: input_datetime.ac_last_command
-          data:
-            datetime: '{{ now().strftime(''%Y-%m-%d %H:%M:%S'') }}'
-          action: input_datetime.set_datetime
-    - data:
-        temp_sensor: '{{ temp_sensor }}'
-        setpoint: '{{ setpoint }}'
-        min_ac: '{{ min_ac }}'
-        max_ac: '{{ max_ac }}'
-        climate_entity: '{{ climate_entity }}'
-      action: script.temp_reglerare_1_steg_1_c
+      - service: script.ac_apply_state
+        data:
+          climate_entity: '{{ climate_entity }}'
+          hvac_mode: heat
+          temperature: '{{ setpoint }}'
+          boost: false
+          boost_entity: '{{ boost_entity }}'
+          eco: true
+          eco_entity: '{{ eco_entity }}'
+      - data:
+          temp_sensor: '{{ temp_sensor }}'
+          setpoint: '{{ setpoint }}'
+          min_ac: '{{ min_ac }}'
+          max_ac: '{{ max_ac }}'
+          climate_entity: '{{ climate_entity }}'
+          eco_entity: '{{ eco_entity }}'
+        action: script.temp_reglerare_1_steg_1_c_via_gate
   mode: single
 - id: '1769279262294'
   alias: 'Husläge: Orchestrator (zone.home)'
@@ -990,7 +980,7 @@
   - choose:
     - conditions:
       - condition: template
-        value_template: '{{ states(''input_number.hemma_borvarde_dag'') in [''unknown'',
+        value_template: '{{ states(''input_number.hemma_borvarde_dag'') in [''unknown''
           ''unavailable''] }}'
       sequence:
       - data:
@@ -1000,7 +990,7 @@
   - choose:
     - conditions:
       - condition: template
-        value_template: '{{ states(''input_number.hemma_borvarde_natt'') in [''unknown'',
+        value_template: '{{ states(''input_number.hemma_borvarde_natt'') in [''unknown''
           ''unavailable''] }}'
       sequence:
       - data:
@@ -1010,7 +1000,7 @@
   - choose:
     - conditions:
       - condition: template
-        value_template: '{{ states(''input_number.pa_vag_target'') in [''unknown'',
+        value_template: '{{ states(''input_number.pa_vag_target'') in [''unknown''
           ''unavailable''] }}'
       sequence:
       - data:
@@ -1020,7 +1010,7 @@
   - choose:
     - conditions:
       - condition: template
-        value_template: '{{ states(''input_number.borta_sovrum_target'') in [''unknown'',
+        value_template: '{{ states(''input_number.borta_sovrum_target'') in [''unknown''
           ''unavailable''] }}'
       sequence:
       - data:
@@ -1042,18 +1032,21 @@
     action: timer.start
   mode: restart
 - id: '1769288848431'
-  alias: 'AC: Boost off when not På_väg'
-  description: ''
+  alias: 'AC: Boost off when Borta'
+  description: 'Safety net: Ensure boost is never left on when the house is empty.'
   triggers:
   - entity_id: input_select.huslage
     trigger: state
   conditions:
-  - condition: template
-    value_template: '{{ not is_state(''input_select.huslage'', ''På_väg'') }}'
+  - condition: state
+    entity_id: input_select.huslage
+    state: Borta
   actions:
-  - target:
-      entity_id: switch.boost_mode
-    action: switch.turn_off
+  - service: script.ac_apply_state
+    data:
+      climate_entity: climate.sandras_ac
+      boost: false
+      boost_entity: switch.boost_mode
   mode: single
 - id: '1769337712504'
   alias: 'Cameras: Privacy helper -> group switch'
@@ -1067,6 +1060,9 @@
       - condition: state
         entity_id: input_boolean.camera_privacy
         state: 'on'
+      - condition: state
+        entity_id: switch.stugan_cameras
+        state: 'off'
       sequence:
       - target:
           entity_id: switch.stugan_cameras
@@ -1075,6 +1071,9 @@
       - condition: state
         entity_id: input_boolean.camera_privacy
         state: 'off'
+      - condition: state
+        entity_id: switch.stugan_cameras
+        state: 'on'
       sequence:
       - target:
           entity_id: switch.stugan_cameras
@@ -1092,6 +1091,9 @@
       - condition: state
         entity_id: switch.stugan_cameras
         state: 'on'
+      - condition: state
+        entity_id: input_boolean.camera_privacy
+        state: 'off'
       sequence:
       - target:
           entity_id: input_boolean.camera_privacy
@@ -1100,6 +1102,9 @@
       - condition: state
         entity_id: switch.stugan_cameras
         state: 'off'
+      - condition: state
+        entity_id: input_boolean.camera_privacy
+        state: 'on'
       sequence:
       - target:
           entity_id: input_boolean.camera_privacy
@@ -1187,3 +1192,47 @@
               entity_id: script.vardagsrum_restore_led_strip_previous_state
             action: script.turn_on
   mode: restart
+- id: '1769346508150'
+  alias: 'UI: Debounce Sliders'
+  description: 'Triggers on slider changes, waits 2s, then triggers the active policy.'
+  mode: restart
+  triggers:
+  - entity_id:
+    - input_number.hemma_borvarde_dag
+    - input_number.hemma_borvarde_natt
+    - input_number.borta_sovrum_target
+    - input_number.pa_vag_target
+    trigger: state
+  actions:
+  - delay: "00:00:02"
+  - choose:
+    - conditions:
+      - condition: state
+        entity_id: input_select.huslage
+        state: "Hemma"
+      sequence:
+      - service: automation.trigger
+        target:
+          entity_id: automation.ac_hemma_policy_day_night_privacy
+        data:
+          skip_condition: false
+    - conditions:
+      - condition: state
+        entity_id: input_select.huslage
+        state: "Borta"
+      sequence:
+      - service: automation.trigger
+        target:
+          entity_id: automation.ac_borta_policy_sovrum_privacy_off
+        data:
+          skip_condition: false
+    - conditions:
+      - condition: state
+        entity_id: input_select.huslage
+        state: "På_väg"
+      sequence:
+      - service: automation.trigger
+        target:
+          entity_id: automation.ac_pa_vag_policy_28_boost_tills_kallax_20_sen_pa_vag_reglering
+        data:
+          skip_condition: false

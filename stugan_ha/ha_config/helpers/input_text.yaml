@@ -1,0 +1,4 @@
+ac_last_state_json:
+  name: "AC Last State JSON"
+  icon: "mdi:code-json"
+  max: 255
