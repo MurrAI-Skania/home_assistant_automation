@@ -1,0 +1,10 @@
+- binary_sensor:
+    - name: "Zone Large Presence"
+      unique_id: zone_large_presence
+      state: >
+        {{ (states('zone.home') | int(0) + states('zone.large_stugan_zone') | int(0)) > 0 }}
+
+    - name: "Zone Small Presence"
+      unique_id: zone_small_presence
+      state: >
+        {{ (states('zone.home') | int(0)) > 0 }}

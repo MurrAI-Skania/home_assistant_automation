@@ -18,12 +18,13 @@ A robust, layered climate system designed for safety, energy efficiency, and com
     *   **Fail-Safe:** If outdoor sensor is `unknown/unavailable`, heating is enabled by default.
 
 3.  **Policy Layer (House Modes):**
+    *   **Orchestration:** Controlled by **Large Zone** Presence (`binary_sensor.zone_large_presence`). This creates a "buffer" where the AC maintains "Hemma" mode even if you are just outside in the garden.
     *   **Hemma (Home):**
         *   **Schedule:** Day/Night targets.
         *   **Sleep Mode:** Enforced ON at night (22:00-06:15), OFF during day.
         *   **Boost:** Active if room is **>3.0°C** below target. Setpoint: **Target + 6°C** (Max 28°C), Fan 100%. Exits at Target - 0.5°C.
     *   **Borta (Away):**
-        *   **Delay:** Changes AC settings **2 hours** after departure (to utilize residual heat). Cameras turn off immediately.
+        *   **Delay:** Activated 3 minutes after leaving the Large Zone.
         *   **Target:** Keeps **coldest room** at safety temp (via `sensor.indoor_min_temperature`).
         *   **Profile:** Sleep Mode ON (Quiet/Low Fan).
     *   **På väg (On the Way):**
@@ -50,6 +51,9 @@ Logic for Zigbee smart switches controlling three specific zones.
 ---
 
 ## 🔒 Security & System
-*   **Cameras:** Two-way sync between `input_boolean.camera_privacy` and `switch.stugan_cameras` with loop guards.
+*   **Orchestration:** Controlled by **Small Zone** Presence (`binary_sensor.zone_small_presence`).
+*   **Cameras:** 
+    *   **Arrival:** Cameras turn **OFF** (Privacy ON) 10s after entering the Small Zone.
+    *   **Departure:** Cameras turn **ON** (Privacy OFF) 3 minutes after leaving the Small Zone.
 *   **Debouncing:** 2-second delay on slider inputs.
 *   **Restarts:** State refreshes immediately on startup.

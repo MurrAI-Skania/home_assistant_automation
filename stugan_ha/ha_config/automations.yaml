@@ -766,13 +766,6 @@
       - condition: template
         value_template: '{{ trigger.id in [''enter_hemma'', ''boundary_day'', ''boundary_night'', ''boundary_weekend_night'', ''startup''] }}'
       sequence:
-      - if:
-          - condition: template
-            value_template: '{{ trigger.id == ''enter_hemma'' }}'
-        then:
-          - target:
-              entity_id: input_boolean.camera_privacy
-            action: input_boolean.turn_on
       - service: script.ac_apply_state
         data:
           climate_entity: '{{ climate_entity }}'
@@ -838,16 +831,6 @@
         state: 'on'
       sequence:
       - stop: "Frost Guard Active - Normal Policy Disabled"
-  
-  # 1. Cameras: Immediate Action on Arrival
-  - choose:
-    - conditions:
-      - condition: template
-        value_template: '{{ trigger.id == ''enter_borta'' }}'
-      sequence:
-      - target:
-          entity_id: input_boolean.camera_privacy
-        action: input_boolean.turn_off
 
   # 2. Heating Guard
   - choose:
@@ -864,19 +847,7 @@
           boost_entity: switch.boost_mode
       - stop: "Heating Disabled by Global Guard"
 
-  # 3. Delay Guard: Wait 2 Hours before touching AC
-  - condition: template
-    value_template: "{{ (now() - states.input_select.huslage.last_changed).total_seconds() > 7200 }}"
-
-  - variables:
-      temp_sensor: sensor.indoor_min_temperature
-      setpoint: '{{ states(''input_number.borta_sovrum_target'') | float }}'
-      min_ac: 16
-      max_ac: 20
-      climate_entity: climate.sandras_ac
-      sleep_entity: switch.ac_sleep_mode
-
-  # 4. AC Logic (Delayed)
+  # 3. AC Logic (Delayed)
   # Enforce Sleep Mode
   - service: script.ac_apply_state
     data:
@@ -981,14 +952,6 @@
       boost_entity: switch.boost_mode
       sleep_entity: switch.ac_sleep_mode
   - choose:
-    - conditions:
-      - condition: template
-        value_template: '{{ trigger.id == ''enter_pa_vag'' }}'
-      sequence:
-      - target:
-          entity_id: input_boolean.camera_privacy
-        action: input_boolean.turn_off
-  - choose:
     # Scenario 1: Below Threshold -> Boost Mode
     - conditions:
       - condition: template
@@ -1016,18 +979,20 @@
         action: script.temp_reglerare_1_steg_1_c_via_gate
   mode: single
 - id: '1769279262294'
-  alias: 'Husläge: Orchestrator (zone.home)'
+  alias: 'Husläge: Orchestrator (Large Zone)'
   triggers:
-  - entity_id: zone.home
-    above: 0
+  - entity_id: binary_sensor.zone_large_presence
+    from: 'off'
+    to: 'on'
     for: 00:00:10
     id: to_hemma
-    trigger: numeric_state
-  - entity_id: zone.home
-    below: 1
+    trigger: state
+  - entity_id: binary_sensor.zone_large_presence
+    from: 'on'
+    to: 'off'
     for: 00:03:00
     id: to_borta
-    trigger: numeric_state
+    trigger: state
   conditions:
   - condition: not
     conditions:
@@ -1434,3 +1399,99 @@
       - target:
           entity_id: input_boolean.frost_guard_active
         action: input_boolean.turn_off
+- id: '1769600000001'
+  alias: 'Murres Rum - TV Mode'
+  description: 'Dims lights when TV starts (or recovers), restores when TV stops (or drops).'
+  mode: restart
+  triggers:
+  - platform: state
+    entity_id: media_player.xiaomi_tv_box
+    from:
+    - 'off'
+    - 'unavailable'
+    - 'unknown'
+    - 'standby'
+    to:
+    - 'on'
+    - 'idle'
+    - 'playing'
+    id: 'tv_on'
+  - platform: state
+    entity_id: media_player.xiaomi_tv_box
+    from:
+    - 'on'
+    - 'idle'
+    - 'playing'
+    to:
+    - 'off'
+    - 'unavailable'
+    - 'unknown'
+    - 'standby'
+    id: 'tv_off'
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id: 'tv_on'
+      sequence:
+      - action: scene.create
+        data:
+          scene_id: murres_lights_before_cinema
+          snapshot_entities:
+          - light.murres_soff_lampa
+          - light.murres_tv_lampa
+          - light.murres_golvlampa_skrivbord
+      - action: light.turn_off
+        target:
+          entity_id:
+          - light.murres_tv_lampa
+          - light.murres_golvlampa_skrivbord
+      - action: light.turn_on
+        target:
+          entity_id: light.murres_soff_lampa
+        data:
+          brightness_pct: 10
+          color_temp: 500
+          transition: 3
+    - conditions:
+      - condition: trigger
+        id: 'tv_off'
+      sequence:
+      - action: scene.turn_on
+        target:
+          entity_id: scene.murres_lights_before_cinema
+        data:
+          transition: 3
+- id: 'camera_orchestrator_zone_presence'
+  alias: 'Cameras: Orchestrator (Presence)'
+  description: 'Toggles privacy mode based on physical presence (Small Zone). Has debounce for GPS jitter.'
+  triggers:
+  - entity_id: binary_sensor.zone_small_presence
+    from: 'off'
+    to: 'on'
+    for: "00:00:10"
+    id: arrived
+    trigger: state
+  - entity_id: binary_sensor.zone_small_presence
+    from: 'on'
+    to: 'off'
+    for: "00:03:00"
+    id: left
+    trigger: state
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id: arrived
+      sequence:
+      - target:
+          entity_id: input_boolean.camera_privacy
+        action: input_boolean.turn_on
+    - conditions:
+      - condition: trigger
+        id: left
+      sequence:
+      - target:
+          entity_id: input_boolean.camera_privacy
+        action: input_boolean.turn_off
+  mode: single

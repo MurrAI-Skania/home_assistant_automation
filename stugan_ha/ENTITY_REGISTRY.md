@@ -4,6 +4,15 @@ This registry tracks all physical devices, helpers, and scripts used in the proj
 
 ---
 
+## 📍 Presence & Zones
+
+| Entity ID | Friendly Name | Role |
+| :--- | :--- | :--- |
+| `binary_sensor.zone_large_presence` | Zone Large Presence | **AC Orchestrator:** Triggers `Hemma` vs `Borta` mode. Allows a "buffer" area (e.g. garden) where AC stays on. |
+| `binary_sensor.zone_small_presence` | Zone Small Presence | **Camera Orchestrator:** Triggers Privacy Mode. Strictly tracks presence within the house. |
+
+---
+
 ## 🌡️ Climate Control (AC)
 
 ### Physical Devices & Sensors
@@ -35,6 +44,15 @@ This registry tracks all physical devices, helpers, and scripts used in the proj
 
 ---
 
+## 🔒 Security & Privacy
+
+| Entity ID | Type | Role |
+| :--- | :--- | :--- |
+| `input_boolean.camera_privacy` | Boolean | **Helper:** Master switch for privacy. ON = Cameras OFF. |
+| `switch.stugan_cameras` | Group | Actual switch group controlling the cameras. |
+
+---
+
 ## 💡 Lighting & Buttons
 
 ### Vardagsrum (Living Room)
@@ -46,6 +64,8 @@ This registry tracks all physical devices, helpers, and scripts used in the proj
 | `event.vardagsrum_knapp_entre_button_1` | Event | Physical button (Top) |
 | `event.vardagsrum_knapp_entre_button_2` | Event | Physical button (Bottom) |
 | `input_select.vardagsrum_led_mysbelysning_cykel` | Select | Cycles themes: Gold, Red, Purple, etc. |
+| `input_boolean.vardagsrum_in_the_mood` | Boolean | Trigger for "In the Mood" mode |
+| `input_boolean.vardagsrum_warning_emotionally_instable` | Boolean | Trigger for "Emotionally Instable" warning mode |
 
 ### Sovrum (Bedroom)
 | Entity ID | Type | Role |

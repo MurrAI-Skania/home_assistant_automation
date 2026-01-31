@@ -19,3 +19,6 @@ ac_smart_regulation:
 frost_guard_active:
   name: 'Frost Guard Active'
   icon: 'mdi:snowflake-alert'
+murres_lights_prev_saved:
+  name: "Murres Rum Lights Previous State Saved"
+  icon: "mdi:content-save"
