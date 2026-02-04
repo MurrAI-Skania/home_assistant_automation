@@ -292,7 +292,11 @@ ac_apply_state:
     # 9. Turn Off Screen Display (Always, if we touched anything)
     - if:
         - condition: template
-          value_template: "{{ screen_display_entity is defined and screen_display_entity is not none }}"
+          value_template: >
+            {{ screen_display_entity is defined 
+               and screen_display_entity is not none 
+               and is_state(screen_display_entity, 'on')
+               and (now() - states[screen_display_entity].last_changed).total_seconds() > 60 }}
       then:
         - service: switch.turn_off
           target:

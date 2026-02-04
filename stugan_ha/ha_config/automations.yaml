@@ -638,22 +638,22 @@
           brightness_pct: 100
   mode: single
 - id: '1769278502631'
-  alias: 'AC: Hemma-policy (day/night) + privacy'
+  alias: 'AC: Hemma-policy (day/night)'
   triggers:
-  - minutes: /10
+  - platform: state
+    entity_id: sensor.vardagsrum_kallax_temperature
     id: tick
-    trigger: time_pattern
   - entity_id: input_select.huslage
     to: Hemma
     id: enter_hemma
     trigger: state
-  - at: 06:15:00
+  - at: input_datetime.hemma_day_start
     id: boundary_day
     trigger: time
-  - at: '20:00:00'
+  - at: input_datetime.hemma_night_start_weekday
     id: boundary_night
     trigger: time
-  - at: '22:00:00'
+  - at: input_datetime.hemma_night_start_weekend
     id: boundary_weekend_night
     trigger: time
   - event: start
@@ -699,15 +699,7 @@
       entity_id: timer.huslage_cooldown
       state: idle
   - variables:
-      wd: '{{ now().weekday() }}'
-      t: '{{ now().strftime(''%H:%M:%S'') }}'
-      is_weekend: '{{ wd in [4,5] }}'
-      is_day: >
-        {% if is_weekend %}
-          {{ '06:15:00' <= t < '22:00:00' }}
-        {% else %}
-          {{ '06:15:00' <= t < '20:00:00' }}
-        {% endif %}
+      is_day: "{{ is_state('binary_sensor.hemma_mode_day', 'on') }}"
       is_night: "{{ not is_day }}"
       setpoint: "{% if is_day %}
   {{ states('input_number.hemma_borvarde_dag') |
@@ -800,15 +792,15 @@
   mode: single
 
 - id: '1769278860222'
-  alias: 'AC: Borta-policy (sovrum) + privacy off'
+  alias: 'AC: Borta-policy (sovrum)'
   triggers:
   - entity_id: input_select.huslage
     to: Borta
     id: enter_borta
     trigger: state
-  - minutes: /10
+  - platform: state
+    entity_id: sensor.sovrum_temperatur
     id: tick
-    trigger: time_pattern
   - event: start
     id: startup
     trigger: homeassistant
@@ -847,15 +839,30 @@
           boost_entity: switch.boost_mode
       - stop: "Heating Disabled by Global Guard"
 
-  # 3. AC Logic (Delayed)
-  # Enforce Sleep Mode
-  - service: script.ac_apply_state
-    data:
-      climate_entity: '{{ climate_entity }}'
-      sleep: true
-      sleep_entity: '{{ sleep_entity }}'
-  
-  # Regulate Temperature
+  - variables:
+      temp_sensor: sensor.sovrum_temperatur
+      current_temp: "{{ states(temp_sensor) | float }}"
+      setpoint: "{{ states('input_number.borta_sovrum_target') | float }}"
+      min_ac: 16
+      max_ac: 28
+      climate_entity: climate.sandras_ac
+      boost_entity: switch.boost_mode
+      sleep_entity: switch.ac_sleep_mode
+
+  # 3. AC Logic (Borta)
+  # Ensure Sleep is OFF
+  - if:
+      - condition: state
+        entity_id: switch.ac_sleep_mode
+        state: 'on'
+    then:
+      - service: script.ac_apply_state
+        data:
+          climate_entity: '{{ climate_entity }}'
+          sleep: false
+          sleep_entity: '{{ sleep_entity }}'
+
+  # Regulate Temperature (Protocol)
   - data:
       temp_sensor: '{{ temp_sensor }}'
       setpoint: '{{ setpoint }}'
@@ -873,9 +880,9 @@
   - platform: template
     value_template: "{{ states('sensor.vardagsrum_kallax_temperature')|float >= states('input_number.pa_vag_target')|float }}"
     id: reached_threshold
-  - minutes: /10
+  - platform: state
+    entity_id: sensor.vardagsrum_kallax_temperature
     id: tick
-    trigger: time_pattern
   - event: start
     id: startup
     trigger: homeassistant
@@ -1349,9 +1356,6 @@
       {% set vals = sensors | map('states') | map('float', none) | reject('eq', none) | list %}
       {{ vals | length > 0 and (vals | min) <= 8.0 }}
     for: "00:10:00"
-  - minutes: "/10"
-    id: tick
-    trigger: time_pattern
   - event: start
     id: startup
     trigger: homeassistant

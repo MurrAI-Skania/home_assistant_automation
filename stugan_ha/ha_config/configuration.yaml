@@ -12,6 +12,7 @@ scene: !include scenes.yaml
 sensor: !include sensors.yaml
 
 input_boolean: !include helpers/input_boolean.yaml
+input_datetime: !include helpers/input_datetime.yaml
 input_number: !include helpers/input_number.yaml
 input_select: !include helpers/input_select.yaml
 input_text: !include helpers/input_text.yaml

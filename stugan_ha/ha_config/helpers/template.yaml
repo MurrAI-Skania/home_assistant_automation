@@ -8,3 +8,16 @@
       unique_id: zone_small_presence
       state: >
         {{ (states('zone.home') | int(0)) > 0 }}
+
+    - name: "Hemma Mode Day"
+      unique_id: hemma_mode_day
+      icon: mdi:white-balance-sunny
+      state: >
+        {% set t = now() %}
+        {% set start_time = today_at(states('input_datetime.hemma_day_start')) %}
+        {% if t.weekday() in [4, 5] %}
+          {% set end_time = today_at(states('input_datetime.hemma_night_start_weekend')) %}
+        {% else %}
+          {% set end_time = today_at(states('input_datetime.hemma_night_start_weekday')) %}
+        {% endif %}
+        {{ start_time <= t < end_time }}
