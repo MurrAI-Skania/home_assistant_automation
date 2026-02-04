@@ -289,15 +289,15 @@ ac_apply_state:
           target:
             entity_id: timer.ac_command_cooldown
 
-    # 9. Turn Off Screen Display (Always, if we touched anything)
+    # 9. Turn Off Screen Display (Delayed Safety)
     - if:
         - condition: template
           value_template: >
             {{ screen_display_entity is defined 
                and screen_display_entity is not none 
-               and is_state(screen_display_entity, 'on')
-               and (now() - states[screen_display_entity].last_changed).total_seconds() > 60 }}
+               and is_state(screen_display_entity, 'on') }}
       then:
+        - delay: "00:01:00"
         - service: switch.turn_off
           target:
             entity_id: "{{ screen_display_entity }}"

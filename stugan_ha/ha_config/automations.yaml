@@ -1367,9 +1367,11 @@
     below: 8.0
     id: too_cold
     for: "00:10:00"
-  - platform: state
+  - platform: numeric_state
     entity_id: sensor.indoor_min_temperature
-    id: tick
+    above: 9.0
+    id: warm_enough
+    for: "00:05:00"
   - event: start
     id: startup
     trigger: homeassistant
