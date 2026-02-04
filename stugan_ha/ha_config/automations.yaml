@@ -640,12 +640,8 @@
 - id: '1769278502631'
   alias: 'AC: Hemma-policy (day/night)'
   triggers:
-  - platform: template
-    value_template: >
-      {% set sensor = 'sensor.vardagsrum_kallax_temperature' %}
-      {% set current = states(sensor) | float(0) %}
-      {% set last = state_attr('automation.ac_hemma_policy_day_night', 'last_triggered_temp') | float(current) %}
-      {{ (current - last) | abs >= 0.5 }}
+  - platform: state
+    entity_id: sensor.vardagsrum_kallax_temperature
     id: tick
   - entity_id: input_select.huslage
     to: Hemma
@@ -671,6 +667,12 @@
   - condition: state
     entity_id: input_select.huslage
     state: Hemma
+  # Ignore Tick trigger if change is small (Heartbeat/Noise filter)
+  - condition: template
+    value_template: >
+      {{ trigger.id != 'tick' or 
+         (trigger.from_state is defined and trigger.from_state is not none and 
+          (trigger.to_state.state|float(0) - trigger.from_state.state|float(0))|abs >= 0.5) }}
   actions:
   - choose:
     - conditions:
@@ -802,12 +804,8 @@
     to: Borta
     id: enter_borta
     trigger: state
-  - platform: template
-    value_template: >
-      {% set sensor = 'sensor.sovrum_temperatur' %}
-      {% set current = states(sensor) | float(0) %}
-      {% set last = state_attr('automation.ac_borta_policy_sovrum', 'last_triggered_temp') | float(current) %}
-      {{ (current - last) | abs >= 0.5 }}
+  - platform: state
+    entity_id: sensor.indoor_min_temperature
     id: tick
   - event: start
     id: startup
@@ -823,6 +821,12 @@
   - condition: state
     entity_id: timer.huslage_cooldown
     state: idle
+  # Ignore Tick trigger if change is small (Heartbeat/Noise filter)
+  - condition: template
+    value_template: >
+      {{ trigger.id != 'tick' or 
+         (trigger.from_state is defined and trigger.from_state is not none and 
+          (trigger.to_state.state|float(0) - trigger.from_state.state|float(0))|abs >= 0.5) }}
   actions:
   - choose:
     - conditions:
@@ -848,7 +852,7 @@
       - stop: "Heating Disabled by Global Guard"
 
   - variables:
-      temp_sensor: sensor.sovrum_temperatur
+      temp_sensor: sensor.indoor_min_temperature
       current_temp: "{{ states(temp_sensor) | float }}"
       setpoint: "{{ states('input_number.borta_sovrum_target') | float }}"
       min_ac: 16
@@ -888,12 +892,8 @@
   - platform: template
     value_template: "{{ states('sensor.vardagsrum_kallax_temperature')|float >= states('input_number.pa_vag_target')|float }}"
     id: reached_threshold
-  - platform: template
-    value_template: >
-      {% set sensor = 'sensor.vardagsrum_kallax_temperature' %}
-      {% set current = states(sensor) | float(0) %}
-      {% set last = state_attr('automation.ac_pa_vag_policy_28_boost_tills_kallax_20_sen_pa_vag_reglering', 'last_triggered_temp') | float(current) %}
-      {{ (current - last) | abs >= 0.5 }}
+  - platform: state
+    entity_id: sensor.vardagsrum_kallax_temperature
     id: tick
   - event: start
     id: startup
@@ -906,6 +906,12 @@
   - condition: state
     entity_id: input_select.huslage
     state: På_väg
+  # Ignore Tick trigger if change is small (Heartbeat/Noise filter)
+  - condition: template
+    value_template: >
+      {{ trigger.id != 'tick' or 
+         (trigger.from_state is defined and trigger.from_state is not none and 
+          (trigger.to_state.state|float(0) - trigger.from_state.state|float(0))|abs >= 0.5) }}
   actions:
   - choose:
     - conditions:
@@ -1356,34 +1362,21 @@
   description: 'Emergency heating if any room drops below 8.0°C'
   mode: single
   triggers:
-  - platform: template
+  - platform: numeric_state
+    entity_id: sensor.indoor_min_temperature
+    below: 8.0
     id: too_cold
-    value_template: >
-      {% set sensors = [
-        'sensor.vardagsrum_kallax_temperature',
-        'sensor.sovrum_temperatur',
-        'sensor.kok_klimatsensor_temperature',
-        'sensor.ac_indoor_temperature'
-      ] %}
-      {% set vals = sensors | map('states') | map('float', none) | reject('eq', none) | list %}
-      {{ vals | length > 0 and (vals | min) <= 8.0 }}
     for: "00:10:00"
+  - platform: state
+    entity_id: sensor.indoor_min_temperature
+    id: tick
   - event: start
     id: startup
     trigger: homeassistant
   conditions: []
   actions:
   - variables:
-      sensors: >
-        {{ [
-          'sensor.vardagsrum_kallax_temperature',
-          'sensor.sovrum_temperatur',
-          'sensor.kok_klimatsensor_temperature',
-          'sensor.ac_indoor_temperature'
-        ] }}
-      temps: >
-        {{ sensors | map('states') | map('float', none) | reject('eq', none) | list }}
-      min_temp: "{{ temps | min if temps|length > 0 else none }}"
+      min_temp: "{{ states('sensor.indoor_min_temperature') | float(none) }}"
       frost_target: 8.0
       release: 9.0
   - choose:
