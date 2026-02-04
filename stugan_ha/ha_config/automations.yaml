@@ -640,8 +640,12 @@
 - id: '1769278502631'
   alias: 'AC: Hemma-policy (day/night)'
   triggers:
-  - platform: state
-    entity_id: sensor.vardagsrum_kallax_temperature
+  - platform: template
+    value_template: >
+      {% set sensor = 'sensor.vardagsrum_kallax_temperature' %}
+      {% set current = states(sensor) | float(0) %}
+      {% set last = state_attr('automation.ac_hemma_policy_day_night', 'last_triggered_temp') | float(current) %}
+      {{ (current - last) | abs >= 0.5 }}
     id: tick
   - entity_id: input_select.huslage
     to: Hemma
@@ -798,8 +802,12 @@
     to: Borta
     id: enter_borta
     trigger: state
-  - platform: state
-    entity_id: sensor.sovrum_temperatur
+  - platform: template
+    value_template: >
+      {% set sensor = 'sensor.sovrum_temperatur' %}
+      {% set current = states(sensor) | float(0) %}
+      {% set last = state_attr('automation.ac_borta_policy_sovrum', 'last_triggered_temp') | float(current) %}
+      {{ (current - last) | abs >= 0.5 }}
     id: tick
   - event: start
     id: startup
@@ -880,8 +888,12 @@
   - platform: template
     value_template: "{{ states('sensor.vardagsrum_kallax_temperature')|float >= states('input_number.pa_vag_target')|float }}"
     id: reached_threshold
-  - platform: state
-    entity_id: sensor.vardagsrum_kallax_temperature
+  - platform: template
+    value_template: >
+      {% set sensor = 'sensor.vardagsrum_kallax_temperature' %}
+      {% set current = states(sensor) | float(0) %}
+      {% set last = state_attr('automation.ac_pa_vag_policy_28_boost_tills_kallax_20_sen_pa_vag_reglering', 'last_triggered_temp') | float(current) %}
+      {{ (current - last) | abs >= 0.5 }}
     id: tick
   - event: start
     id: startup
